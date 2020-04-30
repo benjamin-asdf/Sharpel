@@ -21,7 +21,6 @@ namespace Sharpel {
                     var filename = Console.ReadLine();
                     var fileContents = File.ReadAllText(filename); // todo retry logic
                     CheckClassDeclatation(fileContents);
-                        
                 }
                 
             }
@@ -36,27 +35,34 @@ namespace Sharpel {
 
 
                 var root = tree.GetRoot();
-                var classDeclaration = root.ChildNodes().OfType<ClassDeclarationSyntax>().FirstOrDefault();
-
-                if (classDeclaration == null) {
-                    Console.Error.WriteLine("cannot get class declaration");
-                    Console.Error.WriteLine(input);
-                    return;
-                }
-
-
+                var rewriter = new AdjConstRewriter();
                 var model = compilation.GetSemanticModel(tree);
-                foreach (var memberDeclarationSyntax in classDeclaration.Members) {
-                    Console.WriteLine(memberDeclarationSyntax.ToFullString());
-                    foreach (var item in memberDeclarationSyntax.DescendantNodes()) {
-                        Console.WriteLine(item.Kind());
-                    }
-                }
+                var newNode = rewriter.Rewrite(root,compilation,model);
+
+                Console.WriteLine("--- output ---- ");
+                Console.WriteLine(newNode);
+                Console.WriteLine();
+                Console.WriteLine("-----------");
+
+
 
 
 
             }
         }
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

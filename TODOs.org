@@ -1,0 +1,33 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+* take first class declaration
+* ensure leading trivia
+* prune syntax tree after the class declaration
+
+* rewriter: input class declaration
+* output 2 class declarations
+  + trivia
+
+
+
+* literally do prunedTree.ToFullString + output -> file contents
