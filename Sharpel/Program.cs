@@ -3,8 +3,6 @@ using Microsoft.CodeAnalysis.CSharp;
 using System.IO;
 using Microsoft.CodeAnalysis;
 using System.Linq;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using System.Collections.Generic;
 
 namespace Sharpel {
 
@@ -27,13 +25,15 @@ namespace Sharpel {
                 // var line = Console.ReadLine();
                 // var lines = line.Split("\u0000");
 
-
-
                 if (CommandInputLoop(out var cmd, out var input)) {
 
                     if (cmd == Command.Filename) {
                         var fileContents = File.ReadAllText(input); // todo retry logic
-                        CheckClassDeclatation(fileContents);
+                        try {
+                            CheckClassDeclatation(fileContents);
+                        } catch (Exception e) {
+                            Console.Error.WriteLine(e);
+                        }
                     }
 
                     if (cmd == Command.LogSyntax) {
@@ -49,10 +49,10 @@ namespace Sharpel {
                                 if (level == 0) {
                                     Console.WriteLine("-----------------");
                                 }
-                                Console.WriteLine($"{pad}{item.Kind()} - {item.ToFullString()}");
+                                Console.WriteLine($"{pad} {item.Kind()} - {item.ToFullString()}");
                                 var childNode = item.AsNode();
                                 if (childNode != null) {
-                                    Console.WriteLine($"{pad}descendants: ({childNode.DescendantNodes().Count()})");
+                                    // Console.WriteLine($"{pad}descendants: ({childNode.DescendantNodes().Count()})");
                                     LogWithIndent(level + 1,childNode);
                                 }
                             }

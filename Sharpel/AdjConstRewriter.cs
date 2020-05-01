@@ -43,7 +43,7 @@ namespace Sharpel {
             var adjId = SyntaxFactory.Identifier(adjClassName).WithTriviaFrom(old.Identifier);
             var newClass = old.WithIdentifier(adjId)
                 .WithMembers(AdjMembers(old.Members))
-                .WithBaseList(GetAdjBaseList(adjClassName));
+                .WithBaseList(GetAdjBaseList(adjClassName)).NormalizeWhitespace();
 
             return newClass;
             
@@ -63,7 +63,7 @@ namespace Sharpel {
                             .WithTypeArgumentList(
                                 TypeArgumentList(
                                     SingletonSeparatedList<TypeSyntax>(
-                                        IdentifierName(adjClassName)))))))).NormalizeWhitespace();
+                                        IdentifierName(adjClassName))))))));
         }
 
 
@@ -86,11 +86,21 @@ namespace Sharpel {
                     if (field.Declaration.Type is PredefinedTypeSyntax predefinedType) {
                         var newType = SyntaxFactory.NullableType(PredefinedType(Token(predefinedType.Keyword.Kind())));
 
+                        if (field.Declaration.Variables.Count != 1) {
+
+                            throw new Exception($"Unsupported field. {field.ToFullString()}");
+                        }
+
+                        // NOTE: only support 1 variable
+                        var variable = field.Declaration.Variables[0];
                         var newField = field.WithDeclaration(
                             field.Declaration
-                            .WithType(newType)).NormalizeWhitespace();
-                            // .With);
-                            // variables
+                            .WithType(newType)
+                            .WithVariables(
+                                SingletonSeparatedList<VariableDeclaratorSyntax>(
+                                    VariableDeclarator(variable.Identifier)))
+                            )
+                            .WithTriviaFrom(oldMember);
 
                         list.Add(newField);
 
