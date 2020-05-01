@@ -24,13 +24,18 @@
 
 
 ** TODO understand descendant nodes and child nodes
+   - childs are the immediate ones,
+   - still don't fully get the descendants though
    :LOGBOOK:
-   CLOCK: [2020-05-01 Fri 08:40]
+   CLOCK: [2020-05-01 Fri 08:40]--[2020-05-01 Fri 09:34] =>  0:54
    CLOCK: [2020-05-01 Fri 07:32]--[2020-05-01 Fri 08:06] =>  0:34
    :END:
 ** for better output I should still parse the entire buffer,
 *** and only log the specified region
 *** command could send the line nums
+
+
+
 
 
 
@@ -43,6 +48,10 @@
 
 * rewriter: input class declaration
 * output 2 class declarations
+** CasinoConst
+*** assignment expression or something changes
+** CasinoConstAdj
+***  predefinedType -> nullable
   + trivia
 
 

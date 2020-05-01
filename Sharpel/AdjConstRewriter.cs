@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System;
 using System.Collections.Generic;
+using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 
 namespace Sharpel {
     
@@ -11,6 +12,8 @@ namespace Sharpel {
 
         public SyntaxNode Rewrite(SyntaxNode root, Compilation compilation, SemanticModel model) {
                 var classDeclaration = root.ChildNodes().OfType<ClassDeclarationSyntax>().FirstOrDefault();
+
+
                 if (classDeclaration == null) {
                     Console.Error.WriteLine("cannot get class declaration");
                     return root;
@@ -38,12 +41,32 @@ namespace Sharpel {
         static ClassDeclarationSyntax AdjClassSyntax(
             ClassDeclarationSyntax old, string adjClassName) {
             var adjId = SyntaxFactory.Identifier(adjClassName).WithTriviaFrom(old.Identifier);
-            var newClass = old.WithIdentifier(adjId).WithMembers(AdjMembers(old.Members));
-
+            var newClass = old.WithIdentifier(adjId)
+                .WithMembers(AdjMembers(old.Members))
+                .WithBaseList(GetAdjBaseList(adjClassName));
 
             return newClass;
             
         }
+
+
+        static BaseListSyntax GetAdjBaseList(string adjClassName) {
+            const string constPatchClassName = "ConstantPatches";
+            const string constAdjId = "ConstAdjustment";
+            return BaseList(
+                SingletonSeparatedList<BaseTypeSyntax>(
+                    SimpleBaseType(
+                        QualifiedName(
+                            IdentifierName(constPatchClassName),
+                            GenericName(
+                                Identifier(constAdjId))
+                            .WithTypeArgumentList(
+                                TypeArgumentList(
+                                    SingletonSeparatedList<TypeSyntax>(
+                                        IdentifierName(adjClassName)))))))).NormalizeWhitespace();
+        }
+
+
 
         static SyntaxToken questionToken = SyntaxFactory.Token(SyntaxKind.QuestionToken);
 
@@ -51,39 +74,32 @@ namespace Sharpel {
             var list = new List<MemberDeclarationSyntax>();
 
             foreach (var oldMember in oldMembers) {
-
+                // var newMember = oldMember
+                //     .WithTriviaFrom(oldMember);
 
                 if (oldMember is FieldDeclarationSyntax field) {
+
                     Console.WriteLine($"var decl: {field.Declaration}");
                     Console.WriteLine($"type kind: {field.Declaration.Type.Kind()}");
 
 
                     if (field.Declaration.Type is PredefinedTypeSyntax predefinedType) {
+                        var newType = SyntaxFactory.NullableType(PredefinedType(Token(predefinedType.Keyword.Kind())));
 
+                        var newField = field.WithDeclaration(
+                            field.Declaration
+                            .WithType(newType)).NormalizeWhitespace();
+                            // .With);
+                            // variables
 
-                        var keyword = predefinedType.Keyword.ValueText;
-
-                        // var newType = SyntaxFactory.NullableType(keyword);
-
-
-
+                        list.Add(newField);
 
                     }
 
-
                 }
 
-                var trivia = SyntaxFactory.ParseTrailingTrivia("\r\nheheehehe mfs\r\n");
-                Console.WriteLine($"trivia: {trivia.FirstOrDefault().ToFullString()}");
-
-                var newMember = oldMember
-                    .WithTrailingTrivia(trivia);
-                list.Add(newMember);
-
-
-
-
-                Console.WriteLine($"new member... {newMember.ToFullString()}");
+                // list.Add(newMember);
+                // Console.WriteLine($"new member... {newMember.ToFullString()}");
 
 
             }
