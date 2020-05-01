@@ -10,19 +10,68 @@ namespace Sharpel {
 
     class Program {
 
+        public enum Command {
+            None,
+            Filename,
+            LogSyntax
+        }
+
         static void Main(string[] args) {
-            Console.WriteLine("Running BenjRoslyn, listening for input...");
+            Console.WriteLine("Running Sharpel, listening for input...");
             
             while (true) {
-                var command = Console.ReadLine();
-                if (String.IsNullOrEmpty(command) || command != ":filename:") {
-                    Console.WriteLine("Invalid command.");
+                Console.WriteLine("\ninput:\n");
+                if (CommandInputLoop(out var cmd, out var input)) {
+
+                    if (cmd == Command.Filename) {
+                        var fileContents = File.ReadAllText(input); // todo retry logic
+                        CheckClassDeclatation(fileContents);
+                    }
+
+                    if (cmd == Command.LogSyntax) {
+                        Console.WriteLine($"\nparse for log syntax...\n");
+                        var tree = SyntaxFactory.ParseSyntaxTree(input);
+
+                        var root = tree.GetRoot();
+                        LogWithIndent(0,root);
+
+                        void LogWithIndent(int level, SyntaxNode node) {
+                            var pad = new String('*',level);
+                            foreach (var item in node.ChildNodesAndTokens()) {
+                                Console.WriteLine($"{pad}{item.Kind()} - {item.ToFullString()}");
+                                var childNode = item.AsNode();
+                                if (childNode != null) {
+                                    LogWithIndent(level + 1,childNode);
+                                }
+                            }
+                        }
+                    }
+
+
+
                 } else {
-                    var filename = Console.ReadLine();
-                    var fileContents = File.ReadAllText(filename); // todo retry logic
-                    CheckClassDeclatation(fileContents);
+                    Console.WriteLine("invalid input");
                 }
-                
+
+            }
+
+            bool CommandInputLoop(out Command cmd, out string input) {
+                cmd = Command.None;
+                input = "";
+                var cmdInput = Console.ReadLine();
+                if (!String.IsNullOrWhiteSpace(cmdInput)) {
+                    if (cmdInput == ":filename:") {
+                        cmd = Command.Filename;
+                    }
+                    if (cmdInput == ":logsyntax:") {
+                        cmd = Command.LogSyntax;
+                    }
+
+                    input = Console.ReadLine();
+                    return !String.IsNullOrWhiteSpace(input);
+                }
+
+                return false;
             }
         }
 
@@ -44,20 +93,9 @@ namespace Sharpel {
                 Console.WriteLine();
                 Console.WriteLine("-----------");
 
-
-
-
-
             }
+
         }
-
-
-
-
-
-
-
-
 
 
 
