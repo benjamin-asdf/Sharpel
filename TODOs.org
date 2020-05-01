@@ -18,6 +18,23 @@
 
 
 
+* log all syntax output
+** DONE first hello world
+   CLOSED: [2020-05-01 Fri 07:20]
+
+
+** TODO understand descendant nodes and child nodes
+   :LOGBOOK:
+   CLOCK: [2020-05-01 Fri 08:40]
+   CLOCK: [2020-05-01 Fri 07:32]--[2020-05-01 Fri 08:06] =>  0:34
+   :END:
+** for better output I should still parse the entire buffer,
+*** and only log the specified region
+*** command could send the line nums
+
+
+
+
 
 
 * take first class declaration
