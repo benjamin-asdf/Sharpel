@@ -100,7 +100,8 @@ namespace Sharpel {
                                 SingletonSeparatedList<VariableDeclaratorSyntax>(
                                     VariableDeclarator(variable.Identifier)))
                             )
-                            .WithTriviaFrom(oldMember);
+                            .WithTriviaFrom(oldMember)
+                            .WithModifiers(TokenList(Token(SyntaxKind.PublicKeyword)));
 
                         list.Add(newField);
 
