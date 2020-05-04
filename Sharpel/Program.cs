@@ -16,6 +16,10 @@ namespace Sharpel {
 
         static void Main(string[] args) {
             Console.WriteLine("Running Sharpel, listening for input...");
+
+            static void hey() {
+                
+            }
             
             while (true) {
                 Console.WriteLine("\ninput:\n");
@@ -45,6 +49,11 @@ namespace Sharpel {
 
                         void LogWithIndent(int level, SyntaxNode node) {
                             var pad = new String('*',level);
+                            // foreach (var item in node.DescendantNodesAndTokens(null,true)) {
+                            //         Console.WriteLine($"{pad} {item.Kind()} - {item.ToFullString()}");
+                            //     }
+
+                            // }
                             foreach (var item in node.ChildNodesAndTokens()) {
                                 if (level == 0) {
                                     Console.WriteLine("-----------------");
@@ -97,11 +106,15 @@ namespace Sharpel {
                                                            syntaxTrees: new[] { tree }, references: new[] { mscorlib });
 
 
-                var root = tree.GetRoot(); // best
-                var rewriter = new AdjConstRewriter();
+                var root = tree.GetRoot();
                 var model = compilation.GetSemanticModel(tree);
-                var newNode = rewriter.Rewrite(root,compilation,model);
+                var rewriter = new AdjConstRewriter(compilation,model);
+                var newNode = rewriter.Rewrite(root);
 
+                Console.WriteLine();
+                Console.WriteLine("--- input ---- ");
+                Console.WriteLine(root.ToFullString());
+                Console.WriteLine("\n");
                 Console.WriteLine("--- output ---- ");
                 Console.WriteLine(newNode);
                 Console.WriteLine();

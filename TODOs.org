@@ -49,11 +49,48 @@
 * rewriter: input class declaration
 * output 2 class declarations
 ** CasinoConst
-*** assignment expression or something changes
+*** TODO simple fields with `??`
+    :LOGBOOK:
+    CLOCK: [2020-05-01 Fri 15:56]--[2020-05-01 Fri 17:01] =>  1:05
+    CLOCK: [2020-05-01 Fri 13:52]--[2020-05-01 Fri 14:27] =>  0:35
+    :END:
+*** backing fields __ __
+**** detect if there is already a backing field
+**** maybe we can assume the input doesn't have backing fields, might make it easier
+**** Seems like I have to map fields -> backing fields else
+****
+
+
 ** CasinoConstAdj
-***  predefinedType -> nullable
-  + trivia
+*** DONE predefinedType -> nullable
+    CLOSED: [2020-05-01 Fri 13:47]
 
 
 
 * literally do prunedTree.ToFullString + output -> file contents
+
+
+
+* TODO ConstAdj how to handle the backing fields
+  public static class CasinoConstAdj : ConstantPatches.ConstAdjustment<CasinoConstAdj> {
+    public int? CASINO_SLOT_AMOUNT;
+    public long? casinoRefreshPrice;
+    public int[] _array; <------------- ignore?
+    public int[] array;
+}
+
+
+
+* get the value for the coalesce expression
+  :LOGBOOK:
+  CLOCK: [2020-05-04 Mon 14:17]--[2020-05-04 Mon 15:05] =>  0:48
+  :END:
+* what binary expressions are there, how to I get coalesce expr
+
+* build the members of newConst
+  :LOGBOOK:
+  CLOCK: [2020-05-04 Mon 15:25]
+  :END:
+** bakcking fields
+** value types
+** non value types
