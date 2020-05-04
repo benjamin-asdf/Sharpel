@@ -179,18 +179,10 @@ namespace Sharpel {
 
                 static FieldDeclarationSyntax buildField(FieldDeclarationSyntax field,ExpressionSyntax initializerValue, VariableDeclaratorSyntax variable) {
 
-                    var  _field = field
+                    return field
                             .ReplaceNode(variable.Initializer,
-                                SyntaxFactory.EqualsValueClause(initializerValue)
-                                         .NormalizeWhitespace());
-
-                    Console.WriteLine("field half way:");
-                    Console.WriteLine(_field);
-                    _field = _field.WithModifiers(publicStaticModifiers).NormalizeWhitespace();
-
-                    Console.WriteLine("final field:");
-                    Console.WriteLine(_field);
-                    return _field;
+                                SyntaxFactory.EqualsValueClause(initializerValue).NormalizeWhitespace())
+                            .WithModifiers(publicStaticModifiers).NormalizeWhitespace();
                 }
 
                 var valueExpr = ValueExpression(variable.Initializer.Value);
