@@ -13,6 +13,10 @@ namespace Sharpel {
         Compilation compilation;
         SemanticModel model;
 
+
+
+
+
         public AdjConstRewriter(Compilation compilation, SemanticModel model) {
             this.compilation = compilation;
             this.model = model;
@@ -30,9 +34,9 @@ namespace Sharpel {
             var adjClass = AdjClassSyntax(classDeclaration,adjClassName);
             var newConst = NewConst(classDeclaration,adjClassName);
 
-            // return $"{newConst}\r\n{adjClass}";
+            return $"{newConst}\r\n{adjClass}";
 
-            return newConst.ToFullString();
+            // return newConst.ToFullString();
         }
 
 
@@ -102,28 +106,9 @@ namespace Sharpel {
 
 
         FieldDeclarationSyntax AdjFieldDecl(FieldDeclarationSyntax field, TypeSyntax type) {
-            // NOTE: only support 1 variable
             var variable = field.Declaration.Variables[0];
-            return field.WithDeclaration(
-                field.Declaration
-                .WithType(type)
-                .WithVariables(
-                    SingletonSeparatedList<VariableDeclaratorSyntax>(
-                        VariableDeclarator(variable.Identifier)))
-                )
-                .WithModifiers(TokenList(Token(SyntaxKind.PublicKeyword)));
-                // .WithTriviaFrom(field);
-
+            return buildFieldDecl(type,variable.Identifier,SyntaxKind.PublicKeyword);
         }
-
-
-
-
-
-
-
-
-
 
 
 
@@ -189,71 +174,81 @@ namespace Sharpel {
 
                 Console.WriteLine($"{sym.Name} - value type: {field.Type.IsValueType} {field.Type}");
 
-                if (field.Type.IsValueType) {
-                    var expr = BuildCoalseceExpression(adjClassName,variable,valueExpr);
+                if (fieldSyntax.Declaration.Type is PredefinedTypeSyntax predefinedType
+                    || field.Type.IsValueType) {
+                    var expr = coaleseExpr(accessIExpression(adjClassName,field.Name),valueExpr);
+                    newMembers.Add(buildField(fieldSyntax,expr,variable));
+                } if (field.Type.IsReferenceType) {
+                    var backingFieldName = $"__{variable.Identifier.ValueText}__";
+                    var backingField = buildFieldDecl(
+                        fieldSyntax.Declaration.Type,
+                        backingFieldName,
+                        SyntaxKind.StaticKeyword);
+
+
+                    var expr = coaleseExpr(
+                        accessIExpression(adjClassName,field.Name),
+                        // (__array__ ?? (__array__ = new []{1,2,3})
+                        coaleseExpr(IdentifierName(backingFieldName),
+                                    ParenthesizedExpression(AssignmentExpression(
+                                                                SyntaxKind.SimpleAssignmentExpression,
+                                                                IdentifierName(backingFieldName),valueExpr))));
+
+                    newMembers.Add(backingField);
                     newMembers.Add(buildField(fieldSyntax,expr,variable));
 
                 } else {
-                    // reference type
-                    var backingFieldName = $"__{variable.Identifier.ValueText}__";
-                    var backingField =
-                        fieldSyntax.WithDeclaration(
-                            SyntaxFactory.VariableDeclaration(
-                                fieldSyntax.Declaration.Type,
-                                SeparatedList<VariableDeclaratorSyntax>(
-                                    new [] {SyntaxFactory.VariableDeclarator(Identifier(backingFieldName).NormalizeWhitespace())})));
+                    Console.WriteLine("dont know how to handle {field.Name} {field.Type}.");
+                }
 
-
-                    newMembers.Add(backingField);
-
-
-
+                static ExpressionSyntax coaleseExpr(ExpressionSyntax left, ExpressionSyntax right) {
+                    return BinaryExpression(SyntaxKind.CoalesceExpression,left,Token(SyntaxKind.QuestionQuestionToken),right);
 
                 }
 
-
-
-                // field.Type.IsValueType
-
-                // get the value part of the declaration
-
-                // var value
-
-
+                static ExpressionSyntax accessIExpression(string className, string identifier) {
+                    return MemberAccessExpression(
+                        // CasinoConstAdj.I.name
+                            SyntaxKind.SimpleMemberAccessExpression,
+                            // CasinoConstAdj.I
+                            MemberAccessExpression(
+                                SyntaxKind.SimpleMemberAccessExpression,
+                                IdentifierName(className),
+                                Token(SyntaxKind.DotToken),
+                                IdentifierName("I")),
+                            Token(SyntaxKind.DotToken),
+                            IdentifierName(identifier));
+                }
 
             }
 
 
-            return oldClass.WithMembers(new SyntaxList<MemberDeclarationSyntax>(newMembers));
+            return oldClass.WithMembers(new SyntaxList<MemberDeclarationSyntax>(newMembers))
+                // NOTE radical.
+                .WithoutTrivia()
+                .NormalizeWhitespace();
         }
 
 
+        static FieldDeclarationSyntax buildFieldDecl(TypeSyntax type, string identifier, params SyntaxKind[] modifierKinds) {
+            return buildFieldDecl(type,Identifier(identifier),modifierKinds);
+        }
+
+        static FieldDeclarationSyntax buildFieldDecl(TypeSyntax type, SyntaxToken identifier, params SyntaxKind[] modifierKinds) {
+            return FieldDeclaration(
+                VariableDeclaration(type,
+                                    SingletonSeparatedList<VariableDeclaratorSyntax>(
+                                        VariableDeclarator(identifier.NormalizeWhitespace()))))
+                .WithModifiers(modifierList(modifierKinds));
+        }
 
 
-
-
-
-
-
-
-
-        ExpressionSyntax BuildCoalseceExpression(string adjClassName, VariableDeclaratorSyntax variable, ExpressionSyntax right) {
-
-            return BinaryExpression(SyntaxKind.CoalesceExpression,
-                              // CasinoConstAdj.I.CASINO_SLOT_AMOUNT
-                              MemberAccessExpression(
-                                  SyntaxKind.SimpleMemberAccessExpression,
-                                  // CasinoConstAdj.I
-                                  MemberAccessExpression(
-                                      SyntaxKind.SimpleMemberAccessExpression,
-                                      IdentifierName(adjClassName),
-                                      Token(SyntaxKind.DotToken),
-                                      IdentifierName("I")),
-                                  Token(SyntaxKind.DotToken),
-                                  IdentifierName(variable.Identifier)),
-                              Token(SyntaxKind.QuestionQuestionToken),
-                              right);
-
+        static SyntaxTokenList modifierList(params SyntaxKind[] modifierKinds) {
+            var list = TokenList();
+            foreach (var kind in modifierKinds) {
+                list.Add(Token(kind));
+            }
+            return list;
         }
 
 
