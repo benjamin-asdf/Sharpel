@@ -97,3 +97,10 @@
 
 
 * add nunit and have hello world
+  :LOGBOOK:
+  CLOCK: [2020-05-05 Tue 13:57]
+  :END:
+** google
+** follow hello world
+** add test
+** run with csharp layer

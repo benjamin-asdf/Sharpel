@@ -10,12 +10,8 @@ namespace Sharpel {
 
     public class AdjConstRewriter {
 
-        Compilation compilation;
-        SemanticModel model;
-
-
-
-
+        readonly Compilation compilation;
+        readonly SemanticModel model;
 
         public AdjConstRewriter(Compilation compilation, SemanticModel model) {
             this.compilation = compilation;
@@ -30,23 +26,46 @@ namespace Sharpel {
                 return "";
             }
 
+            var fieldInfos = GetFieldInfos(model,classDeclaration.Members);
             var adjClassName = $"{classDeclaration.Identifier.ValueText}Adj";
-            var adjClass = AdjClassSyntax(classDeclaration,adjClassName);
-            var newConst = NewConst(classDeclaration,adjClassName);
+            var adjClass = AdjClassSyntax(classDeclaration,adjClassName,fieldInfos);
+            var newConst = NewConst(classDeclaration,adjClassName,fieldInfos);
 
             return $"{newConst}\r\n{adjClass}";
 
             // return newConst.ToFullString();
         }
 
+        static List<FieldInfo> GetFieldInfos(SemanticModel model, SyntaxList<MemberDeclarationSyntax> members) {
+            var infos = new List<FieldInfo>();
+            foreach (var member in members) {
+                if (!(member is FieldDeclarationSyntax fieldDecl)) throw new Exception($"Unsupported member {member.GetType()}");
+                if (fieldDecl.Declaration.Variables.Count() != 1) throw new Exception($"Unsupported member, unsupported number of variables. {member.GetType()}");
+                var variable = fieldDecl.Declaration.Variables[0];
+
+                var sym = model.GetDeclaredSymbol(variable) as IFieldSymbol;
+                if (sym == null) throw new Exception($"Unable to get sym from {variable}");
+
+                // NOTE ignore backing fields already
+                if (variable.Initializer == null) continue;
+
+                infos.Add(new FieldInfo() {
+                    sym = sym,
+                    decl = fieldDecl,
+                    variable = variable
+                });
+
+            }
+
+            return infos;
+
+        }
 
         ClassDeclarationSyntax AdjClassSyntax(
-            ClassDeclarationSyntax old, string adjClassName) {
+            ClassDeclarationSyntax old, string adjClassName, List<FieldInfo> fieldInfos) {
             var adjClass = old
-                .WithIdentifier(Identifier(adjClassName)
-                                // .WithTriviaFrom(old.Identifier)
-                    )
-                .WithMembers(AdjMembers(old.Members)).NormalizeWhitespace()
+                .WithIdentifier(Identifier(adjClassName))
+                .WithMembers(AdjMembers(fieldInfos)).NormalizeWhitespace()
                 .WithBaseList(
                     GetAdjBaseList(adjClassName)
                     ).NormalizeWhitespace(); // TODO bracket is on new line
@@ -76,43 +95,34 @@ namespace Sharpel {
 
         static SyntaxToken questionToken = SyntaxFactory.Token(SyntaxKind.QuestionToken);
 
-        SyntaxList<MemberDeclarationSyntax> AdjMembers(SyntaxList<MemberDeclarationSyntax> oldMembers) {
+        SyntaxList<MemberDeclarationSyntax> AdjMembers(List<FieldInfo> fieldInfos) {
             var list = new List<MemberDeclarationSyntax>();
+            foreach (var field in fieldInfos) {
+                TypeSyntax newType = null;
 
-            foreach (var oldMember in oldMembers) {
-                if (oldMember is FieldDeclarationSyntax field) {
-                    TypeSyntax newType = null;
-                    if (field.Declaration.Variables.Count != 1) {
-                        throw new Exception($"Unsupported field. {field.ToFullString()}");
+                // TODO special types defined in attributes
+                if (field.sym.Type.IsValueType) {
+                    if (!(field.decl.Declaration.Type is PredefinedTypeSyntax predefinedTypeSyntax)) {
+                        Console.WriteLine("{field.decl} - value type but not predefinedTypeSyntax.");
+                        continue;
                     }
 
-                    if (field.Declaration.Type is PredefinedTypeSyntax predefinedType) {
-                        // TODO only make nullables nullable
-                        newType = SyntaxFactory.NullableType(PredefinedType(Token(predefinedType.Keyword.Kind())));
-                    } else
-                        // if (field.Declaration.Type is IdentifierNameSyntax identifier) {
-                        // }
+                    newType = SyntaxFactory.NullableType(
+                        PredefinedType(Token(predefinedTypeSyntax.Keyword.Kind())));
 
-                    newType = field.Declaration.Type;
-                    if (newType == null) {
-                        throw new Exception("Unsupported field type {field.ToFullString()}");
-                    }
-
-                    list.Add(AdjFieldDecl(field,newType));
+                } else {
+                    newType = field.decl.Declaration.Type;
                 }
+
+                if (newType == null) {
+                    throw new Exception("Unsupported field type {field.ToFullString()}");
+                }
+
+                list.Add(buildFieldDecl(newType,field.variable.Identifier,SyntaxKind.PublicKeyword));
+
             }
             return new SyntaxList<MemberDeclarationSyntax>(list);
         }
-
-
-        FieldDeclarationSyntax AdjFieldDecl(FieldDeclarationSyntax field, TypeSyntax type) {
-            var variable = field.Declaration.Variables[0];
-            return buildFieldDecl(type,variable.Identifier,SyntaxKind.PublicKeyword);
-        }
-
-
-
-
 
         static ExpressionSyntax ValueExpression(ExpressionSyntax initializerExpression) {
             if ((initializerExpression is BinaryExpressionSyntax binaryExpression)
@@ -139,28 +149,10 @@ namespace Sharpel {
             }
         }
 
-        ClassDeclarationSyntax NewConst(ClassDeclarationSyntax oldClass, string adjClassName) {
+        ClassDeclarationSyntax NewConst(ClassDeclarationSyntax oldClass, string adjClassName, List<FieldInfo> fieldInfos) {
             var newMembers = new List<MemberDeclarationSyntax>();
 
-            foreach (var member in oldClass.Members) {
-                if (!(member is FieldDeclarationSyntax fieldSyntax)) throw new Exception("not supportet {member.Kind()} - {member}");
-                var variable = fieldSyntax.Declaration.Variables[0];
-                if (variable.Initializer == null) {
-                    Console.WriteLine($"{variable} doesnt have an initializer");
-                    continue;
-                }
-
-                var sym = model.GetDeclaredSymbol(variable);
-                if (sym == null) {
-                    Console.WriteLine("couldnt get sym form {variable}");
-                    continue;
-                }
-
-                if (!(sym is IFieldSymbol field))  {
-                    Console.WriteLine("not abel to get field symbol {member}");
-                    continue;
-
-                }
+            foreach (var field in fieldInfos) {
 
                 static FieldDeclarationSyntax buildField(FieldDeclarationSyntax field,ExpressionSyntax initializerValue, VariableDeclaratorSyntax variable) {
 
@@ -170,15 +162,17 @@ namespace Sharpel {
                             .WithModifiers(publicStaticModifiers).NormalizeWhitespace();
                 }
 
+                var variable = field.variable;
+                var fieldSyntax = field.decl;
+                var sym = field.sym;
                 var valueExpr = ValueExpression(variable.Initializer.Value);
 
-                Console.WriteLine($"{sym.Name} - value type: {field.Type.IsValueType} {field.Type}");
 
                 if (fieldSyntax.Declaration.Type is PredefinedTypeSyntax predefinedType
-                    || field.Type.IsValueType) {
-                    var expr = coaleseExpr(accessIExpression(adjClassName,field.Name),valueExpr);
+                    || sym.Type.IsValueType) {
+                    var expr = coaleseExpr(accessIExpression(adjClassName,sym.Name),valueExpr);
                     newMembers.Add(buildField(fieldSyntax,expr,variable));
-                } if (field.Type.IsReferenceType) {
+                } else if (sym.Type.IsReferenceType) {
                     var backingFieldName = $"__{variable.Identifier.ValueText}__";
                     var backingField = buildFieldDecl(
                         fieldSyntax.Declaration.Type,
@@ -187,7 +181,7 @@ namespace Sharpel {
 
 
                     var expr = coaleseExpr(
-                        accessIExpression(adjClassName,field.Name),
+                        accessIExpression(adjClassName,sym.Name),
                         // (__array__ ?? (__array__ = new []{1,2,3})
                         coaleseExpr(IdentifierName(backingFieldName),
                                     ParenthesizedExpression(AssignmentExpression(
