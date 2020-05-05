@@ -98,9 +98,16 @@
 
 * add nunit and have hello world
   :LOGBOOK:
-  CLOCK: [2020-05-05 Tue 13:57]
+  CLOCK: [2020-05-05 Tue 13:57]--[2020-05-05 Tue 15:06] =>  1:09
   :END:
 ** google
 ** follow hello world
 ** add test
+   :LOGBOOK:
+   CLOCK: [2020-05-05 Tue 15:15]--[2020-05-05 Tue 15:58] =>  0:43
+   :END:
 ** run with csharp layer
+
+
+
+* check analzyer failures
