@@ -148,11 +148,9 @@ namespace Sharpel {
         SyntaxList<MemberDeclarationSyntax> AdjMembers(List<MemberInfo> memberInfos) {
             var list = new List<MemberDeclarationSyntax>();
             foreach (var member in memberInfos) {
-
-                Console.WriteLine($"{member.sym.Name} type name: {member.type.Name} {member.type}");
                 TypeSyntax newType = member.makeNullable ?
-                    nullableType(member.type.Name)
-                    : IdentifierName(member.type.Name);
+                    nullableType(member.type.ToString())
+                    : IdentifierName(member.type.ToString());
 
                 list.Add(buildFieldDecl(newType,member.sym.Name,SyntaxKind.PublicKeyword));
             }
