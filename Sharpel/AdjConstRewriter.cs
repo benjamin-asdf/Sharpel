@@ -17,12 +17,24 @@ namespace Sharpel {
             this.model = model;
         }
 
+        static SyntaxTriviaList ifEditConst = SyntaxFactory.ParseLeadingTrivia("\n\r#if EDIT_CONST\n\r");
+        static SyntaxTriviaList elseConst = SyntaxFactory.ParseTrailingTrivia("#else\n\r");
+        static SyntaxTriviaList endifConst = SyntaxFactory.ParseTrailingTrivia("#endif //EDIT_CONST\n\r");
+
         public string Rewrite(SyntaxNode root) {
+
+            string outstring = "";
+
             var classDeclaration = root.ChildNodes().OfType<ClassDeclarationSyntax>().FirstOrDefault();
+            var usingDirectives = root.ChildNodes().OfType<UsingDirectiveSyntax>();
 
             if (classDeclaration == null) {
                 Console.Error.WriteLine("cannot get class declaration");
                 return "";
+            }
+
+            foreach (var usingDirective in usingDirectives) {
+                outstring = $"{outstring}{usingDirective.ToFullString()}";
             }
 
             var memberInfos = GetMemberInfos(model,classDeclaration.Members);
@@ -33,13 +45,10 @@ namespace Sharpel {
                 Console.WriteLine($"{mem.sym.Name} make nullable {mem.makeNullable}");
             }
 
-            // return "";
-            // return adjClass.ToFullString();
-            // return $"{newConst}\r\n{adjClass}";
-            return newConst.ToFullString();
-        }
+            return $"{outstring}\n#if EDIT_CONST\n{classDeclaration.WithoutTrivia()}\n#else\n{newConst}\n{adjClass}\n#endif //EDIT_CONST".Replace("\r\n", "\n");
+            }
 
-        static List<MemberInfo> GetMemberInfos(SemanticModel model, SyntaxList<MemberDeclarationSyntax> members) {
+            static List<MemberInfo> GetMemberInfos(SemanticModel model, SyntaxList<MemberDeclarationSyntax> members) {
             var infos = new List<MemberInfo>();
             foreach (var member in members) {
                 if (member is PropertyDeclarationSyntax propertyDecl) {
@@ -56,9 +65,7 @@ namespace Sharpel {
                             typeName = sym.Type.ToString()
                         });
 
-                } else {
-
-                    if (!(member is FieldDeclarationSyntax fieldDecl)) throw new Exception($"Unsupported member {member.GetType()}");
+                } else if (member is FieldDeclarationSyntax fieldDecl) {
                     if (fieldDecl.Declaration.Variables.Count() != 1) throw new Exception($"Unsupported member, unsupported number of variables. {member.GetType()}");
                     var variable = fieldDecl.Declaration.Variables[0];
 
@@ -67,11 +74,6 @@ namespace Sharpel {
 
                     // NOTE ignore backing fields already
                     if (variable.Initializer == null) continue;
-
-
-                    if (sym.Type.TypeKind == TypeKind.Error) {
-                        Console.WriteLine("is error type.");
-                    }
 
                     // if error, make nullabel
                     // TODO we have an attribute lookup
@@ -86,6 +88,8 @@ namespace Sharpel {
                             name = sym.Name,
                             typeName = sym.Type.ToString()
                         });
+                } else {
+                    Console.WriteLine($"Warning Unsupported member {member.GetType()}");
                 }
 
                 static bool makeNullable(ITypeSymbol type, TypeSyntax typeSyntax) {
@@ -261,31 +265,7 @@ namespace Sharpel {
             return NullableType(IdentifierName(name));
         }
 
-        public SyntaxNode _Rewrite(SyntaxNode root) {
-            var clOld = root.ChildNodes().First(n => n is ClassDeclarationSyntax);
-            var clNew = clOld
-                .WithLeadingTrivia(ifEditConst)
-                .WithTrailingTrivia(elseConst.AddRange(endifConst).Insert(0, SyntaxFactory.CarriageReturnLineFeed));
-            return root.ReplaceNode(clOld, clNew);
-        }
-
-        static SyntaxTriviaList ifEditConst = SyntaxFactory.ParseLeadingTrivia("\n\r#if EDIT_CONST\n\r");
-        static SyntaxTriviaList elseConst = SyntaxFactory.ParseTrailingTrivia("#else\n\r");
-        static SyntaxTriviaList endifConst = SyntaxFactory.ParseTrailingTrivia("#endif //EDIT_CONST\n\r");
-
-
-
-
-
-        // SyntaxFactory.IfDirectiveTrivia(
-        //     SyntaxFactory.IdentifierName("EDIT_CONST"),
-        //     true,
-        //     true,
-        //     true
-        // );
-
     }
-
 
 }
 
