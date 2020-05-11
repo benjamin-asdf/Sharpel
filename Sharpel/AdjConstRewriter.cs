@@ -13,10 +13,12 @@ namespace Sharpel {
         readonly Compilation compilation;
         readonly SemanticModel model;
 
+
         public AdjConstRewriter(Compilation compilation, SemanticModel model) {
             this.compilation = compilation;
             this.model = model;
         }
+
 
         public string Rewrite(SyntaxNode root) {
             var classDeclaration = root.ChildNodes().OfType<ClassDeclarationSyntax>().FirstOrDefault();
@@ -26,34 +28,82 @@ namespace Sharpel {
                 return "";
             }
 
-            var fieldInfos = GetFieldInfos(model,classDeclaration.Members);
+
+
+            var memberInfos = GetMemberInfos(model,classDeclaration.Members);
             var adjClassName = $"{classDeclaration.Identifier.ValueText}Adj";
-            var adjClass = AdjClassSyntax(classDeclaration,adjClassName,fieldInfos);
-            var newConst = NewConst(classDeclaration,adjClassName,fieldInfos);
+            var adjClass = AdjClassSyntax(classDeclaration,adjClassName,memberInfos);
+            // var newConst = NewConst(classDeclaration,adjClassName,memberInfos).WithoutTrivia();
+            foreach (var mem in memberInfos) {
+                Console.WriteLine($"{mem.sym.Name} make nullable {mem.makeNullable}");
+            }
 
-            return $"{newConst}\r\n{adjClass}";
-
+            // return "";
+            return adjClass.ToFullString();
+            // return $"{newConst}\r\n{adjClass}";
             // return newConst.ToFullString();
         }
 
-        static List<FieldInfo> GetFieldInfos(SemanticModel model, SyntaxList<MemberDeclarationSyntax> members) {
-            var infos = new List<FieldInfo>();
+        static List<MemberInfo> GetMemberInfos(SemanticModel model, SyntaxList<MemberDeclarationSyntax> members) {
+            var infos = new List<MemberInfo>();
             foreach (var member in members) {
-                if (!(member is FieldDeclarationSyntax fieldDecl)) throw new Exception($"Unsupported member {member.GetType()}");
-                if (fieldDecl.Declaration.Variables.Count() != 1) throw new Exception($"Unsupported member, unsupported number of variables. {member.GetType()}");
-                var variable = fieldDecl.Declaration.Variables[0];
+                if (member is PropertyDeclarationSyntax propertyDecl) {
 
-                var sym = model.GetDeclaredSymbol(variable) as IFieldSymbol;
-                if (sym == null) throw new Exception($"Unable to get sym from {variable}");
+                    var sym = model.GetDeclaredSymbol(propertyDecl) as IPropertySymbol;
+                    if (sym == null) throw new Exception($"Unable to get sym from {propertyDecl}");
 
-                // NOTE ignore backing fields already
-                if (variable.Initializer == null) continue;
+                    infos.Add(new MemberInfo() {
+                            isProperty = true,
+                            propSym = sym,
+                            propDecl = propertyDecl,
+                            type = sym.Type,
+                            name = sym.Name,
 
-                infos.Add(new FieldInfo() {
-                    sym = sym,
-                    decl = fieldDecl,
-                    variable = variable
-                });
+
+                            sym = sym,
+                            valueExpression = ValueExpression(propertyDecl.ExpressionBody.Expression),
+                            makeNullable = makeNullable(sym.Type,propertyDecl.Type)
+                        });
+
+                } else {
+
+                    if (!(member is FieldDeclarationSyntax fieldDecl)) throw new Exception($"Unsupported member {member.GetType()}");
+                    if (fieldDecl.Declaration.Variables.Count() != 1) throw new Exception($"Unsupported member, unsupported number of variables. {member.GetType()}");
+                    var variable = fieldDecl.Declaration.Variables[0];
+
+                    var sym = model.GetDeclaredSymbol(variable) as IFieldSymbol;
+                    if (sym == null) throw new Exception($"Unable to get sym from {variable}");
+
+                    // NOTE ignore backing fields already
+                    if (variable.Initializer == null) continue;
+
+
+                    if (sym.Type.TypeKind == TypeKind.Error) {
+                        Console.WriteLine("is error type.");
+                    }
+
+                    // if error, make nullabel
+                    // TODO we have an attribute lookup
+                    // if predefinedTypeSyntax -> make nullable, except string
+
+
+                    infos.Add(new MemberInfo() {
+                            fieldSym = sym,
+                            fieldDecl = fieldDecl,
+                            variable = variable,
+                            type = sym.Type,
+                            isField = true,
+
+                            sym = sym,
+                            valueExpression = ValueExpression(variable.Initializer.Value),
+                            makeNullable = makeNullable(sym.Type,fieldDecl.Declaration.Type)
+                        });
+                }
+
+                static bool makeNullable(ITypeSymbol type, TypeSyntax typeSyntax) {
+                    return type.TypeKind == TypeKind.Error
+                        || (typeSyntax is PredefinedTypeSyntax && type.MetadataName != "String");
+                }
 
             }
 
@@ -62,10 +112,10 @@ namespace Sharpel {
         }
 
         ClassDeclarationSyntax AdjClassSyntax(
-            ClassDeclarationSyntax old, string adjClassName, List<FieldInfo> fieldInfos) {
+            ClassDeclarationSyntax old, string adjClassName, List<MemberInfo> memberInfos) {
             var adjClass = old
                 .WithIdentifier(Identifier(adjClassName))
-                .WithMembers(AdjMembers(fieldInfos)).NormalizeWhitespace()
+                .WithMembers(AdjMembers(memberInfos)).NormalizeWhitespace()
                 .WithBaseList(
                     GetAdjBaseList(adjClassName)
                     ).NormalizeWhitespace(); // TODO bracket is on new line
@@ -95,31 +145,16 @@ namespace Sharpel {
 
         static SyntaxToken questionToken = SyntaxFactory.Token(SyntaxKind.QuestionToken);
 
-        SyntaxList<MemberDeclarationSyntax> AdjMembers(List<FieldInfo> fieldInfos) {
+        SyntaxList<MemberDeclarationSyntax> AdjMembers(List<MemberInfo> memberInfos) {
             var list = new List<MemberDeclarationSyntax>();
-            foreach (var field in fieldInfos) {
-                TypeSyntax newType = null;
+            foreach (var member in memberInfos) {
 
-                // TODO special types defined in attributes
-                if (field.sym.Type.IsValueType) {
-                    if (!(field.decl.Declaration.Type is PredefinedTypeSyntax predefinedTypeSyntax)) {
-                        Console.WriteLine("{field.decl} - value type but not predefinedTypeSyntax.");
-                        continue;
-                    }
+                Console.WriteLine($"{member.sym.Name} type name: {member.type.Name} {member.type}");
+                TypeSyntax newType = member.makeNullable ?
+                    nullableType(member.type.Name)
+                    : IdentifierName(member.type.Name);
 
-                    newType = SyntaxFactory.NullableType(
-                        PredefinedType(Token(predefinedTypeSyntax.Keyword.Kind())));
-
-                } else {
-                    newType = field.decl.Declaration.Type;
-                }
-
-                if (newType == null) {
-                    throw new Exception("Unsupported field type {field.ToFullString()}");
-                }
-
-                list.Add(buildFieldDecl(newType,field.variable.Identifier,SyntaxKind.PublicKeyword));
-
+                list.Add(buildFieldDecl(newType,member.sym.Name,SyntaxKind.PublicKeyword));
             }
             return new SyntaxList<MemberDeclarationSyntax>(list);
         }
@@ -149,10 +184,10 @@ namespace Sharpel {
             }
         }
 
-        ClassDeclarationSyntax NewConst(ClassDeclarationSyntax oldClass, string adjClassName, List<FieldInfo> fieldInfos) {
+        ClassDeclarationSyntax NewConst(ClassDeclarationSyntax oldClass, string adjClassName, List<MemberInfo> memberInfos) {
             var newMembers = new List<MemberDeclarationSyntax>();
 
-            foreach (var field in fieldInfos) {
+            foreach (var field in memberInfos) {
 
                 static FieldDeclarationSyntax buildField(FieldDeclarationSyntax field,ExpressionSyntax initializerValue, VariableDeclaratorSyntax variable) {
 
@@ -162,9 +197,14 @@ namespace Sharpel {
                             .WithModifiers(publicStaticModifiers).NormalizeWhitespace();
                 }
 
+
+
+
+
+
                 var variable = field.variable;
-                var fieldSyntax = field.decl;
-                var sym = field.sym;
+                var fieldSyntax = field.fieldDecl;
+                var sym = field.fieldSym;
                 var valueExpr = ValueExpression(variable.Initializer.Value);
 
 
@@ -172,6 +212,9 @@ namespace Sharpel {
                     || sym.Type.IsValueType) {
                     var expr = coaleseExpr(accessIExpression(adjClassName,sym.Name),valueExpr);
                     newMembers.Add(buildField(fieldSyntax,expr,variable));
+
+
+
                 } else if (sym.Type.IsReferenceType) {
                     var backingFieldName = $"__{variable.Identifier.ValueText}__";
                     var backingField = buildFieldDecl(
@@ -245,9 +288,9 @@ namespace Sharpel {
             return list;
         }
 
-
-
-
+        static TypeSyntax nullableType(string name) {
+            return NullableType(IdentifierName(name));
+        }
 
         public SyntaxNode _Rewrite(SyntaxNode root) {
             var clOld = root.ChildNodes().First(n => n is ClassDeclarationSyntax);
@@ -283,6 +326,7 @@ namespace Sharpel {
         public static int[] array = _array ?? (_array = new []{1,2,3});
         public static readonly int[] bestArr = { 1,2,3 };
     }
+
 
 
 

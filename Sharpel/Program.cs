@@ -17,10 +17,6 @@ namespace Sharpel {
         static void Main(string[] args) {
             Console.WriteLine("Running Sharpel, listening for input...");
 
-            static void hey() {
-                
-            }
-            
             while (true) {
                 Console.WriteLine("\ninput:\n");
 
@@ -100,25 +96,25 @@ namespace Sharpel {
 
         static void CheckClassDeclatation(string input) {
             if (!String.IsNullOrEmpty(input)) {
-                var tree = SyntaxFactory.ParseSyntaxTree(input, CSharpParseOptions.Default.WithPreprocessorSymbols("EDIT_CONST"));
-                var mscorlib = MetadataReference.CreateFromFile(typeof(object).Assembly.Location);
-                var compilation = CSharpCompilation.Create("bestCompilation",
-                                                           syntaxTrees: new[] { tree }, references: new[] { mscorlib });
+
+                if (Adhocs.AdHocParse(input, out SyntaxTree tree, out Compilation compilation, out SemanticModel model)) {
+
+                    var root = tree.GetRoot();
+                    var rewriter = new AdjConstRewriter(compilation,model);
+                    var newNode = rewriter.Rewrite(root);
+
+                    Console.WriteLine();
+                    Console.WriteLine("--- input ---- ");
+                    Console.WriteLine(root.ToFullString());
+                    Console.WriteLine("\n");
+                    Console.WriteLine("--- output ---- ");
+                    Console.WriteLine(newNode);
+                    Console.WriteLine();
+                    Console.WriteLine("-----------");
 
 
-                var root = tree.GetRoot();
-                var model = compilation.GetSemanticModel(tree);
-                var rewriter = new AdjConstRewriter(compilation,model);
-                var newNode = rewriter.Rewrite(root);
+                }
 
-                Console.WriteLine();
-                Console.WriteLine("--- input ---- ");
-                Console.WriteLine(root.ToFullString());
-                Console.WriteLine("\n");
-                Console.WriteLine("--- output ---- ");
-                Console.WriteLine(newNode);
-                Console.WriteLine();
-                Console.WriteLine("-----------");
 
             }
 

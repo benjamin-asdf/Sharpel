@@ -96,7 +96,8 @@
 ** non value types
 
 
-* add nunit and have hello world
+* DONE add nunit and have hello world
+  CLOSED: [2020-05-05 Tue 18:31]
   :LOGBOOK:
   CLOCK: [2020-05-05 Tue 13:57]--[2020-05-05 Tue 15:06] =>  1:09
   :END:
@@ -110,4 +111,9 @@
 
 
 
-* check analzyer failures
+* program steps:
+** take file
+** remove crlf
+** remove everything below #else
+*** I can do an elisp batch operation to put the EDIT_CONST everywhere
+**

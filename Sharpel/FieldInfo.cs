@@ -1,22 +1,34 @@
-using System.Linq;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using System;
-using System.Collections.Generic;
-using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 
 
 
 
-namespace Sharpel {
+namespace Sharpel
+{
 
-    public struct FieldInfo {
-        public IFieldSymbol sym;
-        public FieldDeclarationSyntax decl;
+    public struct MemberInfo {
+        public IFieldSymbol fieldSym;
+        public IPropertySymbol propSym;
+        public bool isField;
+        public bool isProperty;
+        public FieldDeclarationSyntax fieldDecl;
         public VariableDeclaratorSyntax variable;
+        public PropertyDeclarationSyntax propDecl;
+        public string name;
+        public ITypeSymbol type;
+
+
+
+        // try with only this
+        public ExpressionSyntax valueExpression;
+        public ISymbol sym;
+        public bool makeNullable;
+
     }
 
+
+    // we only need the ISymbol and the initializerExpression ?
 
 
 }
