@@ -171,9 +171,8 @@ namespace Sharpel {
             foreach (var mem in memberInfos) {
 
                 // string is the only value type without backing field?
-                // NOTE unkown tyes also return false for IsValueType
-                if (mem.type.IsValueType && mem.type.Name != "String") {
-                    // make backing field
+                // NOTE unkown tyes also return false for IsReferenceType
+                if (mem.type.IsReferenceType && mem.type.Name != "String") {
 
                     var backingFieldName = $"__{mem.name}__";
                     var backingField = buildFieldDecl(
