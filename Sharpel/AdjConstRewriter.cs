@@ -9,16 +9,13 @@ using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 namespace Sharpel {
 
     public class AdjConstRewriter {
-
         readonly Compilation compilation;
         readonly SemanticModel model;
-
 
         public AdjConstRewriter(Compilation compilation, SemanticModel model) {
             this.compilation = compilation;
             this.model = model;
         }
-
 
         public string Rewrite(SyntaxNode root) {
             var classDeclaration = root.ChildNodes().OfType<ClassDeclarationSyntax>().FirstOrDefault();
@@ -28,20 +25,18 @@ namespace Sharpel {
                 return "";
             }
 
-
-
             var memberInfos = GetMemberInfos(model,classDeclaration.Members);
             var adjClassName = $"{classDeclaration.Identifier.ValueText}Adj";
             var adjClass = AdjClassSyntax(classDeclaration,adjClassName,memberInfos);
-            // var newConst = NewConst(classDeclaration,adjClassName,memberInfos).WithoutTrivia();
+            var newConst = NewConst(classDeclaration,adjClassName,memberInfos).WithoutTrivia();
             foreach (var mem in memberInfos) {
                 Console.WriteLine($"{mem.sym.Name} make nullable {mem.makeNullable}");
             }
 
             // return "";
-            return adjClass.ToFullString();
+            // return adjClass.ToFullString();
             // return $"{newConst}\r\n{adjClass}";
-            // return newConst.ToFullString();
+            return newConst.ToFullString();
         }
 
         static List<MemberInfo> GetMemberInfos(SemanticModel model, SyntaxList<MemberDeclarationSyntax> members) {
@@ -53,16 +48,12 @@ namespace Sharpel {
                     if (sym == null) throw new Exception($"Unable to get sym from {propertyDecl}");
 
                     infos.Add(new MemberInfo() {
-                            isProperty = true,
-                            propSym = sym,
-                            propDecl = propertyDecl,
-                            type = sym.Type,
-                            name = sym.Name,
-
-
                             sym = sym,
                             valueExpression = ValueExpression(propertyDecl.ExpressionBody.Expression),
-                            makeNullable = makeNullable(sym.Type,propertyDecl.Type)
+                            makeNullable = makeNullable(sym.Type,propertyDecl.Type),
+                            type = sym.Type,
+                            name = sym.Name,
+                            typeName = sym.Type.ToString()
                         });
 
                 } else {
@@ -88,15 +79,12 @@ namespace Sharpel {
 
 
                     infos.Add(new MemberInfo() {
-                            fieldSym = sym,
-                            fieldDecl = fieldDecl,
-                            variable = variable,
-                            type = sym.Type,
-                            isField = true,
-
                             sym = sym,
                             valueExpression = ValueExpression(variable.Initializer.Value),
-                            makeNullable = makeNullable(sym.Type,fieldDecl.Declaration.Type)
+                            makeNullable = makeNullable(sym.Type,fieldDecl.Declaration.Type),
+                            type = sym.Type,
+                            name = sym.Name,
+                            typeName = sym.Type.ToString()
                         });
                 }
 
@@ -141,16 +129,12 @@ namespace Sharpel {
                                         IdentifierName(adjClassName))))))));
         }
 
-
-
-        static SyntaxToken questionToken = SyntaxFactory.Token(SyntaxKind.QuestionToken);
-
         SyntaxList<MemberDeclarationSyntax> AdjMembers(List<MemberInfo> memberInfos) {
             var list = new List<MemberDeclarationSyntax>();
             foreach (var member in memberInfos) {
                 TypeSyntax newType = member.makeNullable ?
-                    nullableType(member.type.ToString())
-                    : IdentifierName(member.type.ToString());
+                    nullableType(member.typeName)
+                    : IdentifierName(member.typeName);
 
                 list.Add(buildFieldDecl(newType,member.sym.Name,SyntaxKind.PublicKeyword));
             }
@@ -173,68 +157,46 @@ namespace Sharpel {
 
         }
 
-
-        static SyntaxTokenList publicStaticModifiers {
-            get {
-                var list = SyntaxTokenList.Create(Token(SyntaxKind.PublicKeyword));
-                list = list.Add(Token(SyntaxKind.StaticKeyword));
-                return list;
-            }
-        }
+        // public static int CASINO_SLOT_AMOUNT => CasinoConstAdj.I.CASINO_SLOT_AMOUNT ?? 8;
+        // public static long casinoRefreshPrice => CasinoConstAdj.I.casinoRefreshPrice ?? 230000;
+        // static int[] __array__;
+        // public static int[] array => CasinoConstAdj.I.array ?? (__array__ ?? (__array__ = new []{1,2,3}));
 
         ClassDeclarationSyntax NewConst(ClassDeclarationSyntax oldClass, string adjClassName, List<MemberInfo> memberInfos) {
             var newMembers = new List<MemberDeclarationSyntax>();
+            foreach (var mem in memberInfos) {
 
-            foreach (var field in memberInfos) {
+                // string is the only value type without backing field?
+                // NOTE unkown tyes also return false for IsValueType
+                if (mem.type.IsValueType && mem.type.Name != "String") {
+                    // make backing field
 
-                static FieldDeclarationSyntax buildField(FieldDeclarationSyntax field,ExpressionSyntax initializerValue, VariableDeclaratorSyntax variable) {
-
-                    return field
-                            .ReplaceNode(variable.Initializer,
-                                SyntaxFactory.EqualsValueClause(initializerValue).NormalizeWhitespace())
-                            .WithModifiers(publicStaticModifiers).NormalizeWhitespace();
-                }
-
-
-
-
-
-
-                var variable = field.variable;
-                var fieldSyntax = field.fieldDecl;
-                var sym = field.fieldSym;
-                var valueExpr = ValueExpression(variable.Initializer.Value);
-
-
-                if (fieldSyntax.Declaration.Type is PredefinedTypeSyntax predefinedType
-                    || sym.Type.IsValueType) {
-                    var expr = coaleseExpr(accessIExpression(adjClassName,sym.Name),valueExpr);
-                    newMembers.Add(buildField(fieldSyntax,expr,variable));
-
-
-
-                } else if (sym.Type.IsReferenceType) {
-                    var backingFieldName = $"__{variable.Identifier.ValueText}__";
+                    var backingFieldName = $"__{mem.name}__";
                     var backingField = buildFieldDecl(
-                        fieldSyntax.Declaration.Type,
+                        IdentifierName(mem.typeName),
                         backingFieldName,
                         SyntaxKind.StaticKeyword);
 
-
                     var expr = coaleseExpr(
-                        accessIExpression(adjClassName,sym.Name),
+                        accessIExpression(adjClassName,mem.name),
                         // (__array__ ?? (__array__ = new []{1,2,3})
                         coaleseExpr(IdentifierName(backingFieldName),
                                     ParenthesizedExpression(AssignmentExpression(
                                                                 SyntaxKind.SimpleAssignmentExpression,
-                                                                IdentifierName(backingFieldName),valueExpr))));
+                                                                IdentifierName(backingFieldName),mem.valueExpression))));
 
                     newMembers.Add(backingField);
-                    newMembers.Add(buildField(fieldSyntax,expr,variable));
+                    newMembers.Add(buildProp(mem.typeName,mem.name,expr));
 
                 } else {
-                    Console.WriteLine("dont know how to handle {field.Name} {field.Type}.");
+
+                    var expr = coaleseExpr(accessIExpression(adjClassName,mem.name),
+                                           mem.valueExpression);
+
+                    newMembers.Add(buildProp(mem.typeName,mem.name,expr));
+
                 }
+
 
                 static ExpressionSyntax coaleseExpr(ExpressionSyntax left, ExpressionSyntax right) {
                     return BinaryExpression(SyntaxKind.CoalesceExpression,left,Token(SyntaxKind.QuestionQuestionToken),right);
@@ -244,19 +206,28 @@ namespace Sharpel {
                 static ExpressionSyntax accessIExpression(string className, string identifier) {
                     return MemberAccessExpression(
                         // CasinoConstAdj.I.name
+                        SyntaxKind.SimpleMemberAccessExpression,
+                        // CasinoConstAdj.I
+                        MemberAccessExpression(
                             SyntaxKind.SimpleMemberAccessExpression,
-                            // CasinoConstAdj.I
-                            MemberAccessExpression(
-                                SyntaxKind.SimpleMemberAccessExpression,
-                                IdentifierName(className),
-                                Token(SyntaxKind.DotToken),
-                                IdentifierName("I")),
+                            IdentifierName(className),
                             Token(SyntaxKind.DotToken),
-                            IdentifierName(identifier));
+                            IdentifierName("I")),
+                        Token(SyntaxKind.DotToken),
+                        IdentifierName(identifier));
                 }
-
             }
 
+            static PropertyDeclarationSyntax buildProp(string typeName, string name, ExpressionSyntax expr) {
+                return PropertyDeclaration(
+                    IdentifierName(typeName),
+                    Identifier(name))
+                    .WithModifiers(modifierList(SyntaxKind.PublicKeyword,SyntaxKind.StaticKeyword))
+                    .WithExpressionBody(
+                        ArrowExpressionClause(expr))
+                    .WithSemicolonToken(Token(SyntaxKind.SemicolonToken));
+
+            }
 
             return oldClass.WithMembers(new SyntaxList<MemberDeclarationSyntax>(newMembers))
                 // NOTE radical.
@@ -314,18 +285,6 @@ namespace Sharpel {
         // );
 
     }
-
-    public static class CasinoConst /*even more best */ {
-        public const int CASINO_SLOT_AMOUNT = 8;
-        public const long casinoRefreshPrice = 230000;
-        public const string str = "alskdj" + "as;dfj";
-        static int[] _array;
-        // these are what I can expect
-        public static int[] array = _array ?? (_array = new []{1,2,3});
-        public static readonly int[] bestArr = { 1,2,3 };
-    }
-
-
 
 
 }
