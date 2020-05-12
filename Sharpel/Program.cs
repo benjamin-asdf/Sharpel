@@ -2,7 +2,6 @@ using System;
 using Microsoft.CodeAnalysis.CSharp;
 using System.IO;
 using Microsoft.CodeAnalysis;
-using System.Linq;
 
 namespace Sharpel {
 
@@ -11,7 +10,8 @@ namespace Sharpel {
         public enum Command {
             None,
             Filename,
-            LogSyntax
+            LogSyntax,
+            RewriteFile
         }
 
         static void Main(string[] args) {
@@ -28,13 +28,13 @@ namespace Sharpel {
                 if (CommandInputLoop(out var cmd, out var input)) {
 
                     if (cmd == Command.Filename) {
-                        var fileContents = File.ReadAllText(input); // todo retry logic
-                        try {
-                            CheckClassDeclatation(fileContents);
-                        } catch (Exception e) {
-                            Console.Error.WriteLine(e);
-                        }
+                        WithFileContents(input,LogRewrite);
                     }
+
+                    // if (cmd == Command.RewriteFile) {
+                    //     Retry();
+                    // }
+
 
                     if (cmd == Command.LogSyntax) {
                         Console.WriteLine($"\nparse for log syntax...\n");
@@ -94,30 +94,44 @@ namespace Sharpel {
             }
         }
 
-        static void CheckClassDeclatation(string input) {
+        static void WithFileContents(string path, Action<string> op) {
+            var fileContents = "";
+            Operation.Retry(5, () => {
+                fileContents = File.ReadAllText(path);
+            });
+            try {
+                op(fileContents);
+            } catch (Exception e) {
+                Console.Error.WriteLine(e);
+            }
+
+        }
+
+        static void LogRewrite(string input) {
+            if (!String.IsNullOrEmpty(input)) {
+                Console.WriteLine();
+                Console.WriteLine("--- input ---- ");
+                Console.WriteLine(input);
+                Console.WriteLine("\n");
+                Console.WriteLine("--- output ---- ");
+                Console.WriteLine(GetRewrittenString(input));
+                Console.WriteLine();
+                Console.WriteLine("-----------");
+            }
+        }
+
+
+        static string GetRewrittenString(string input) {
             if (!String.IsNullOrEmpty(input)) {
 
                 if (Adhocs.AdHocParse(input, out SyntaxTree tree, out Compilation compilation, out SemanticModel model)) {
 
                     var root = tree.GetRoot();
                     var rewriter = new AdjConstRewriter(compilation,model);
-                    var newNode = rewriter.Rewrite(root);
-
-                    Console.WriteLine();
-                    Console.WriteLine("--- input ---- ");
-                    Console.WriteLine(root.ToFullString());
-                    Console.WriteLine("\n");
-                    Console.WriteLine("--- output ---- ");
-                    Console.WriteLine(newNode);
-                    Console.WriteLine();
-                    Console.WriteLine("-----------");
-
-
+                    return rewriter.Rewrite(root);
                 }
-
-
             }
-
+            return "";
         }
 
 
@@ -128,19 +142,6 @@ namespace Sharpel {
 
 
 
-
-
-
-        static Compilation GetCompilation(string input) {
-            var tree = SyntaxFactory.ParseSyntaxTree(input, CSharpParseOptions.Default.WithPreprocessorSymbols("EDIT_CONST"));
-            var mscorlib = MetadataReference.CreateFromFile(typeof(object).Assembly.Location);
-            var compilation = CSharpCompilation.Create("bestCompilation",
-                                                       syntaxTrees: new[] { tree }, references: new[] { mscorlib });
-            // var model = compilation.GetSemanticModel(tree);
-
-
-            return compilation;
-        }
 
     }
 }
