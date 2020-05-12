@@ -65,7 +65,7 @@ namespace Sharpel {
                             makeNullable = makeNullable(sym.Type,propertyDecl.Type),
                             type = sym.Type,
                             name = sym.Name,
-                            typeName = sym.Type.ToString()
+                            typeName = propertyDecl.Type.WithoutTrivia().ToFullString()
                         });
 
                 } else if (member is FieldDeclarationSyntax fieldDecl) {
@@ -82,14 +82,13 @@ namespace Sharpel {
                     // TODO we have an attribute lookup
                     // if predefinedTypeSyntax -> make nullable, except string
 
-
                     infos.Add(new MemberInfo() {
                             sym = sym,
                             valueExpression = ValueExpression(variable.Initializer.Value),
                             makeNullable = makeNullable(sym.Type,fieldDecl.Declaration.Type),
                             type = sym.Type,
                             name = sym.Name,
-                            typeName = sym.Type.ToString()
+                            typeName = fieldDecl.Declaration.Type.WithoutTrivia().ToFullString()
                         });
                 } else {
                     Console.WriteLine($"Warning Unsupported member {member.GetType()}");
