@@ -1,22 +1,9 @@
-
-using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using System;
-
-
-
-
-
-
-
-
 
 namespace Sharpel {
 
     public static class Adhocs {
-
 
         public static bool AdHocParse(string input, out SyntaxTree tree, out Compilation compilation, out SemanticModel model) {
 
