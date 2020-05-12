@@ -28,12 +28,13 @@ namespace Sharpel {
                 if (CommandInputLoop(out var cmd, out var input)) {
 
                     if (cmd == Command.Filename) {
+                        Console.WriteLine("log rewrite... ");
                         WithFileContents(input,LogRewrite);
                     }
 
-                    // if (cmd == Command.RewriteFile) {
-                    //     Retry();
-                    // }
+                    if (cmd == Command.RewriteFile) {
+                        WithFileContents(input,RewriteFile);
+                    }
 
 
                     if (cmd == Command.LogSyntax) {
@@ -80,6 +81,9 @@ namespace Sharpel {
                     if (cmdInput == ":filename:") {
                         cmd = Command.Filename;
                     }
+                    if (cmdInput == ":rewrite-file:") {
+                        cmd = Command.RewriteFile;
+                    }
                     if (cmdInput == ":logsyntax:") {
                         cmd = Command.LogSyntax;
                     }
@@ -94,20 +98,30 @@ namespace Sharpel {
             }
         }
 
-        static void WithFileContents(string path, Action<string> op) {
+        static void WithFileContents(string path, Action<string,string> op) {
             var fileContents = "";
             Operation.Retry(5, () => {
                 fileContents = File.ReadAllText(path);
             });
             try {
-                op(fileContents);
+                op(path,fileContents);
             } catch (Exception e) {
                 Console.Error.WriteLine(e);
             }
 
         }
 
-        static void LogRewrite(string input) {
+        static void RewriteFile(string path, string content) {
+            var newContent = GetRewrittenString(content);
+            if (String.IsNullOrWhiteSpace(newContent)) {
+                Console.WriteLine($"[Warning] writing null string to {path}\nInput follows\n\n{content}");
+
+            }
+            Operation.Retry(5,() => File.WriteAllText(path,newContent));
+            Console.WriteLine($"! rewrote {path}");
+        }
+
+        static void LogRewrite(string path, string input) {
             if (!String.IsNullOrEmpty(input)) {
                 Console.WriteLine();
                 Console.WriteLine("--- input ---- ");
