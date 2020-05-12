@@ -96,8 +96,10 @@ namespace Sharpel {
                 }
 
                 static bool makeNullable(ITypeSymbol type, TypeSyntax typeSyntax) {
-                    return type.TypeKind == TypeKind.Error
-                        || (typeSyntax is PredefinedTypeSyntax && type.MetadataName != "String");
+                    if (!( type is INamedTypeSymbol namedType )) throw new Exception($"{type} is not a named type.");
+                    return !namedType.IsGenericType
+                        && (type.TypeKind == TypeKind.Error
+                            || (typeSyntax is PredefinedTypeSyntax && type.MetadataName != "String"));
                 }
 
             }
