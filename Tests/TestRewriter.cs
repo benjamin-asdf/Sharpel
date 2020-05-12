@@ -229,9 +229,6 @@ public static class MenuConstAdj : ConstantPatches.ConstAdjustment<MenuConstAdj>
         }
 
 
-
-
-
         static void AssertRewriteNoWhiteSpace(string input, string expected) {
             if (Adhocs.AdHocParse(input, out SyntaxTree tree, out Compilation compilation, out SemanticModel model)) {
                 var root = tree.GetRoot();
