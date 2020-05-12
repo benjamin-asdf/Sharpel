@@ -20,7 +20,6 @@ namespace Sharpel {
             while (true) {
                 Console.WriteLine("\ninput:\n");
 
-
                 // could build the line
                 // var line = Console.ReadLine();
                 // var lines = line.Split("\u0000");
@@ -118,7 +117,7 @@ namespace Sharpel {
 
             }
             Operation.Retry(5,() => File.WriteAllText(path,newContent));
-            Console.WriteLine($"! rewrote {path}");
+            Console.WriteLine($"\nSuccess.\nRewrote {path}");
         }
 
         static void LogRewrite(string path, string input) {
@@ -147,12 +146,6 @@ namespace Sharpel {
             }
             return "";
         }
-
-
-
-
-
-
 
 
 
