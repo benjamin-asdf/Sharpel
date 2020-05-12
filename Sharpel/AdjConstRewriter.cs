@@ -22,9 +22,7 @@ namespace Sharpel {
         static SyntaxTriviaList endifConst = SyntaxFactory.ParseTrailingTrivia("#endif //EDIT_CONST\n\r");
 
         public string Rewrite(SyntaxNode root) {
-
-            string outstring = "";
-
+            var outstring = "";
             var classDeclaration = root.ChildNodes().OfType<ClassDeclarationSyntax>().FirstOrDefault();
             var usingDirectives = root.ChildNodes().OfType<UsingDirectiveSyntax>();
 
