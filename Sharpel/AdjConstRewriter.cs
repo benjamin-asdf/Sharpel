@@ -54,9 +54,14 @@ namespace Sharpel {
                     var sym = model.GetDeclaredSymbol(propertyDecl) as IPropertySymbol;
                     if (sym == null) throw new Exception($"Unable to get sym from {propertyDecl}");
 
+                    var expr = propertyDecl.ExpressionBody?.Expression ?? propertyDecl.Initializer?.Value;
+                    if (expr == null) {
+                        throw new Exception($"unable to get intitializer value from {propertyDecl}");
+                    }
+
                     infos.Add(new MemberInfo() {
                             sym = sym,
-                            valueExpression = ValueExpression(propertyDecl.ExpressionBody.Expression),
+                            valueExpression = ValueExpression(expr),
                             makeNullable = makeNullable(sym.Type,propertyDecl.Type),
                             type = sym.Type,
                             name = sym.Name,
