@@ -255,7 +255,7 @@ namespace Sharpel {
         static SyntaxTokenList modifierList(params SyntaxKind[] modifierKinds) {
             var list = TokenList();
             foreach (var kind in modifierKinds) {
-                list.Add(Token(kind));
+                list = list.Add(Token(kind));
             }
             return list;
         }
