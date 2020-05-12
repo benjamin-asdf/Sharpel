@@ -42,72 +42,7 @@
 
 
 
-* take first class declaration
-* ensure leading trivia
-* prune syntax tree after the class declaration
 
-* rewriter: input class declaration
-* output 2 class declarations
-** CasinoConst
-*** TODO simple fields with `??`
-    :LOGBOOK:
-    CLOCK: [2020-05-01 Fri 15:56]--[2020-05-01 Fri 17:01] =>  1:05
-    CLOCK: [2020-05-01 Fri 13:52]--[2020-05-01 Fri 14:27] =>  0:35
-    :END:
-*** backing fields __ __
-**** detect if there is already a backing field
-**** maybe we can assume the input doesn't have backing fields, might make it easier
-**** Seems like I have to map fields -> backing fields else
-****
-
-
-** CasinoConstAdj
-*** DONE predefinedType -> nullable
-    CLOSED: [2020-05-01 Fri 13:47]
-
-
-
-* literally do prunedTree.ToFullString + output -> file contents
-
-
-
-* TODO ConstAdj how to handle the backing fields
-  public static class CasinoConstAdj : ConstantPatches.ConstAdjustment<CasinoConstAdj> {
-    public int? CASINO_SLOT_AMOUNT;
-    public long? casinoRefreshPrice;
-    public int[] _array; <------------- ignore?
-    public int[] array;
-}
-
-
-
-* get the value for the coalesce expression
-  :LOGBOOK:
-  CLOCK: [2020-05-04 Mon 14:17]--[2020-05-04 Mon 15:05] =>  0:48
-  :END:
-* what binary expressions are there, how to I get coalesce expr
-
-* build the members of newConst
-  :LOGBOOK:
-  CLOCK: [2020-05-04 Mon 15:25]--[2020-05-04 Mon 16:06] =>  0:41
-  :END:
-** bakcking fields
-** value types
-** non value types
-
-
-* DONE add nunit and have hello world
-  CLOSED: [2020-05-05 Tue 18:31]
-  :LOGBOOK:
-  CLOCK: [2020-05-05 Tue 13:57]--[2020-05-05 Tue 15:06] =>  1:09
-  :END:
-** google
-** follow hello world
-** add test
-   :LOGBOOK:
-   CLOCK: [2020-05-05 Tue 15:15]--[2020-05-05 Tue 15:58] =>  0:43
-   :END:
-** run with csharp layer
 
 
 
@@ -117,3 +52,23 @@
 ** remove everything below #else
 *** I can do an elisp batch operation to put the EDIT_CONST everywhere
 **
+
+* checkout more examples and find things
+
+
+* TODO attribute for custom value types (make nullable)
+** custom structs lookup
+* skeletton dll with common types ->
+** num
+** frozen collections
+
+* frozen collections patches special stuff
+ [[file:~/org/rewriter/collectionconst.cs::#else][example]]
+
+* generic: default to referenceType,
+
+* everything defaults to referenceType with backing field,
+
+
+* move the const rewriter + tests into its own repo
+** sharpel just has a reference to it.
