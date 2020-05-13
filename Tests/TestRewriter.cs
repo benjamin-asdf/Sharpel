@@ -34,7 +34,7 @@ public static class CasinoConst
 {
     public static int CASINO_SLOT_AMOUNT => CasinoConstAdj.I.CASINO_SLOT_AMOUNT ?? 8;
 }
-public static class CasinoConstAdj : ConstantPatches.ConstAdjustment<CasinoConstAdj>
+public class CasinoConstAdj : ConstantPatches.ConstAdjustment<CasinoConstAdj>
 {
     public int? CASINO_SLOT_AMOUNT;
 }
@@ -69,7 +69,7 @@ public static class CasinoConst
     static int[] __array__;
     public static int[] array => CasinoConstAdj.I.array ?? __array__ ?? (__array__ = new[]{1, 2, 3});
 }
-public static class CasinoConstAdj : ConstantPatches.ConstAdjustment<CasinoConstAdj>
+public class CasinoConstAdj : ConstantPatches.ConstAdjustment<CasinoConstAdj>
 {
     public int[] array;
 }
@@ -96,7 +96,7 @@ public static class CasinoConst
 {
     public static int bestProp => CasinoConstAdj.I.bestProp ?? 88;
 }
-public static class CasinoConstAdj : ConstantPatches.ConstAdjustment<CasinoConstAdj>
+public class CasinoConstAdj : ConstantPatches.ConstAdjustment<CasinoConstAdj>
 {
     public int? bestProp;
 }
@@ -126,7 +126,7 @@ public static class CasinoConst
 {
     public static int best => CasinoConstAdj.I.best ?? 4;
 }
-public static class CasinoConstAdj : ConstantPatches.ConstAdjustment<CasinoConstAdj>
+public class CasinoConstAdj : ConstantPatches.ConstAdjustment<CasinoConstAdj>
 {
     public int? best;
 }
@@ -187,7 +187,7 @@ public static class MenuConst
     static HashSet<OverlayType> __stackableOverlays__;
     public static HashSet<OverlayType> stackableOverlays => MenuConstAdj.I.stackableOverlays ?? __stackableOverlays__ ?? (__stackableOverlays__ = new HashSet<OverlayType>{OverlayType.LiveChallenges, });
 }
-public static class MenuConstAdj : ConstantPatches.ConstAdjustment<MenuConstAdj>
+public class MenuConstAdj : ConstantPatches.ConstAdjustment<MenuConstAdj>
 {
     public HashSet<OverlayType> stackableOverlays;
 }
@@ -214,7 +214,7 @@ public static class MenuConst
     static Num __bestNum__;
     public static Num bestNum => MenuConstAdj.I.bestNum ?? __bestNum__ ?? (__bestNum__ = 99);
 }
-public static class MenuConstAdj : ConstantPatches.ConstAdjustment<MenuConstAdj>
+public class MenuConstAdj : ConstantPatches.ConstAdjustment<MenuConstAdj>
 {
     public Num bestNum;
 }
@@ -241,7 +241,7 @@ public static class ListConst
 {
     public static PatchableList<string> List => ListConstAdj.I.List;
 }
-public static class ListConstAdj : ConstantPatches.ConstAdjustment<ListConstAdj>
+public class ListConstAdj : ConstantPatches.ConstAdjustment<ListConstAdj>
 {
     static PatchableList<string> __listDefault__;
     public static PatchableList<string> __ListDefault__ => __listDefault__ ?? (__listDefault__ = new PatchableList<string>());

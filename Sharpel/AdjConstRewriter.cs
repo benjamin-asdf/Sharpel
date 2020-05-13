@@ -114,15 +114,11 @@ namespace Sharpel {
 
         ClassDeclarationSyntax AdjClassSyntax(
             ClassDeclarationSyntax old, string adjClassName, List<MemberInfo> memberInfos) {
-            var adjClass = old
-                .WithIdentifier(Identifier(adjClassName))
+            return ClassDeclaration(adjClassName)
                 .WithMembers(AdjMembers(memberInfos)).NormalizeWhitespace()
                 .WithBaseList(
-                    GetAdjBaseList(adjClassName)
-                    ).NormalizeWhitespace(); // TODO bracket is on new line
-
-            return adjClass;
-
+                    GetAdjBaseList(adjClassName))
+                .WithModifiers(modifierList(SyntaxKind.PublicKeyword));
         }
 
 
