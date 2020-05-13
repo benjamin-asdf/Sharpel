@@ -4,12 +4,12 @@ using RoslynUtils;
 
 public class CommonTypes {
     public readonly HashSet<INamedTypeSymbol> collectionTypes;
+    public readonly ITypeSymbol customStructAttr;
 
     public CommonTypes(Compilation compilation) {
         this.collectionTypes = new HashSet<INamedTypeSymbol>();
         collectCollectionType(compilation,collectionTypes,"FrozenArray`1");
         collectCollectionType(compilation,collectionTypes,"PatchableList`1");
-
 
         static void collectCollectionType(Compilation compilation, HashSet<INamedTypeSymbol> types, string name) {
             var _type = compilation.GetTypeByMetadataName(name);
@@ -18,6 +18,9 @@ public class CommonTypes {
             }
             types.Add(_type);
         }
+
+
+        this.customStructAttr =  compilation.GetTypeByMetadataName("CustomStructAttribute");
 
     }
 
@@ -29,6 +32,5 @@ public class CommonTypes {
         }
         return false;
     }
-
 
 }

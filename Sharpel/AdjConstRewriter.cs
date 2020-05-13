@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System;
 using System.Collections.Generic;
+using RoslynUtils;
 using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 
 namespace Sharpel {
@@ -12,16 +13,49 @@ namespace Sharpel {
         readonly Compilation compilation;
         readonly SemanticModel model;
         readonly CommonTypes types;
+        readonly HashSet<string> customStructs;
 
         public AdjConstRewriter(Compilation compilation, SemanticModel model) {
             this.compilation = compilation;
             this.model = model;
             this.types = new CommonTypes(compilation);
+            this.customStructs = new HashSet<string>();
         }
 
+
+        static void TryCollectCustomStructs(HashSet<string> customStructs, ClassDeclarationSyntax classDecl, SemanticModel model, CommonTypes types) {
+            var attributes = classDecl.AttributeLists;
+
+            foreach (var attrList in attributes) {
+
+                foreach (var attr in attrList.Attributes) {
+                    var typeSym = model.GetTypeInfo(attr).Type;
+                    if (typeSym != null) {
+
+                        if (typeSym.EqualTo(types.customStructAttr) && attr.ArgumentList != null) {
+
+                            foreach (var arg in attr.ArgumentList.Arguments) {
+                                if (arg.Expression is TypeOfExpressionSyntax typeOfExpression
+                                    && typeOfExpression.Type is IdentifierNameSyntax id) {
+                                    customStructs.Add(id.Identifier.ToFullString());
+                               }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+
+
+
         public string Rewrite(SyntaxNode root) {
+
             var outstring = "";
             var classDeclaration = root.ChildNodes().OfType<ClassDeclarationSyntax>().FirstOrDefault();
+
+            TryCollectCustomStructs(customStructs,classDeclaration,model,types);
+
             var usingDirectives = root.ChildNodes().OfType<UsingDirectiveSyntax>();
 
             if (classDeclaration == null) {
