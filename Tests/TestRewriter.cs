@@ -79,34 +79,6 @@ public static class CasinoConstAdj : ConstantPatches.ConstAdjustment<CasinoConst
 
         }
 
-//         [Test]
-//         public void TestStringLiteral() {
-
-//             AssertRewriteNoWhiteSpace(@"
-// public static class CasinoConst  {
-//     public string hi => ""asldjf"";
-// }
-// ",
-// @"
-// #if EDIT_CONST
-// public static class CasinoConst  {
-//     public string hi => ""asldjf"";
-// }
-// #else
-// public static class CasinoConst
-// {
-//     public static string hi => CasinoConstAdj.I.hi ?? ""asldjf"";
-// }
-// public static class CasinoConstAdj : ConstantPatches.ConstAdjustment<CasinoConstAdj>
-// {
-//     public string hi;
-// }
-// #endif //EDIT_CONST
-// "
-// );
-//         }
-
-
         [Test]
         public void TestProperty() {
 
@@ -145,10 +117,6 @@ public static class CasinoConst  {
     public static int best { get; } = 4;
 }
 ",@"
-#if EDIT_CONST
-public static class CasinoConst  {
-    public int best => 88;
-}
 #if EDIT_CONST
 public static class CasinoConst  {
     public static int best { get; } = 4;
