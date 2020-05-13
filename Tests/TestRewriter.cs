@@ -228,6 +228,40 @@ public static class MenuConstAdj : ConstantPatches.ConstAdjustment<MenuConstAdj>
                 );
         }
 
+        [Test]
+        public void TestClassFromSkelletonDll() {
+
+            AssertRewriteNoWhiteSpace(@"
+public static class MenuConst {
+    public Num bestNum => 99;
+}
+",@"
+#if EDIT_CONST
+public static class MenuConst {
+    public Num bestNum => 99;
+}
+#else
+public static class MenuConst
+{
+    static Num __bestNum__;
+    public static Num bestNum => MenuConstAdj.I.bestNum ?? __bestNum__ ?? (__bestNum__ = 99);
+}
+public static class MenuConstAdj : ConstantPatches.ConstAdjustment<MenuConstAdj>
+{
+    public Num bestNum;
+}
+#endif //EDIT_CONST
+");
+        }
+
+
+        // test frozen collection
+
+
+
+
+
+
 
         static void AssertRewriteNoWhiteSpace(string input, string expected) {
             if (Adhocs.AdHocParse(input, out SyntaxTree tree, out Compilation compilation, out SemanticModel model)) {

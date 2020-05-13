@@ -11,15 +11,13 @@ namespace Sharpel {
     public class AdjConstRewriter {
         readonly Compilation compilation;
         readonly SemanticModel model;
+        readonly CommonTypes types;
 
         public AdjConstRewriter(Compilation compilation, SemanticModel model) {
             this.compilation = compilation;
             this.model = model;
+            this.types = new CommonTypes(compilation);
         }
-
-        static SyntaxTriviaList ifEditConst = SyntaxFactory.ParseLeadingTrivia("\n\r#if EDIT_CONST\n\r");
-        static SyntaxTriviaList elseConst = SyntaxFactory.ParseTrailingTrivia("#else\n\r");
-        static SyntaxTriviaList endifConst = SyntaxFactory.ParseTrailingTrivia("#endif //EDIT_CONST\n\r");
 
         public string Rewrite(SyntaxNode root) {
             var outstring = "";
@@ -35,7 +33,7 @@ namespace Sharpel {
                 outstring = $"{outstring}{usingDirective.ToFullString()}";
             }
 
-            var memberInfos = GetMemberInfos(model,classDeclaration.Members);
+            var memberInfos = GetMemberInfos(model,classDeclaration.Members,types);
             var adjClassName = $"{classDeclaration.Identifier.ValueText}Adj";
             var adjClass = AdjClassSyntax(classDeclaration,adjClassName,memberInfos);
             var newConst = NewConst(classDeclaration,adjClassName,memberInfos).WithoutTrivia();
@@ -46,63 +44,73 @@ namespace Sharpel {
             return $"{outstring}\n#if EDIT_CONST\n{classDeclaration.WithoutTrivia()}\n#else\n{newConst}\n{adjClass}\n#endif //EDIT_CONST".Replace("\r\n", "\n");
             }
 
-            static List<MemberInfo> GetMemberInfos(SemanticModel model, SyntaxList<MemberDeclarationSyntax> members) {
-            var infos = new List<MemberInfo>();
-            foreach (var member in members) {
-                if (member is PropertyDeclarationSyntax propertyDecl) {
+            static List<MemberInfo> GetMemberInfos(SemanticModel model, SyntaxList<MemberDeclarationSyntax> members, CommonTypes types) {
+                var infos = new List<MemberInfo>();
+                foreach (var member in members) {
+                    if (member is PropertyDeclarationSyntax propertyDecl) {
 
-                    var sym = model.GetDeclaredSymbol(propertyDecl) as IPropertySymbol;
-                    if (sym == null) throw new Exception($"Unable to get sym from {propertyDecl}");
+                        var sym = model.GetDeclaredSymbol(propertyDecl) as IPropertySymbol;
+                        if (sym == null) throw new Exception($"Unable to get sym from {propertyDecl}");
 
-                    var expr = propertyDecl.ExpressionBody?.Expression ?? propertyDecl.Initializer?.Value;
-                    if (expr == null) {
-                        throw new Exception($"unable to get intitializer value from {propertyDecl}");
+                        var expr = propertyDecl.ExpressionBody?.Expression ?? propertyDecl.Initializer?.Value;
+                        if (expr == null) {
+                            throw new Exception($"unable to get intitializer value from {propertyDecl}");
+                        }
+
+                        infos.Add(new MemberInfo() {
+                                sym = sym,
+                                valueExpression = ValueExpression(expr),
+                                makeNullable = makeNullable(sym.Type,propertyDecl.Type),
+                                type = sym.Type,
+                                name = sym.Name,
+                                typeName = propertyDecl.Type.WithoutTrivia().ToFullString(),
+
+                            });
+
+                    } else if (member is FieldDeclarationSyntax fieldDecl) {
+                        if (fieldDecl.Declaration.Variables.Count() != 1) throw new Exception($"Unsupported member, unsupported number of variables. {member.GetType()}");
+                        var variable = fieldDecl.Declaration.Variables[0];
+
+                        var sym = model.GetDeclaredSymbol(variable) as IFieldSymbol;
+                        if (sym == null) throw new Exception($"Unable to get sym from {variable}");
+
+                        // NOTE ignore backing fields already
+                        if (variable.Initializer == null) continue;
+
+                        // if error, make backing field
+                        // TODO we have an attribute lookup
+                        // if predefinedTypeSyntax -> make nullable, except string
+
+                        infos.Add(new MemberInfo() {
+                                sym = sym,
+                                valueExpression = ValueExpression(variable.Initializer.Value),
+                                makeNullable = makeNullable(sym.Type,fieldDecl.Declaration.Type),
+                                type = sym.Type,
+                                name = sym.Name,
+                                typeName = fieldDecl.Declaration.Type.WithoutTrivia().ToFullString()
+                            });
+
+
+                        Console.WriteLine($"is {sym.Name} collection type? {types.IsCollectionType(sym.Type)}");
+
+                    } else {
+                        Console.WriteLine($"Warning Unsupported member {member.GetType()}");
                     }
 
-                    infos.Add(new MemberInfo() {
-                            sym = sym,
-                            valueExpression = ValueExpression(expr),
-                            makeNullable = makeNullable(sym.Type,propertyDecl.Type),
-                            type = sym.Type,
-                            name = sym.Name,
-                            typeName = propertyDecl.Type.WithoutTrivia().ToFullString()
-                        });
+                    static bool makeNullable(ITypeSymbol type, TypeSyntax typeSyntax) {
+                        if (type.TypeKind == TypeKind.Error) {
+                            Log.Warning($"cannot get type kind for {type.Name}, default to not make nullable");
+                        }
+                        if (type is INamedTypeSymbol namedType && namedType.IsGenericType) return false;
+                        return type.TypeKind != TypeKind.Error && type.IsValueType;
+                        // return type.TypeKind == TypeKind.Error
+                        //         || (typeSyntax is PredefinedTypeSyntax && type.MetadataName != "String");
+                    }
 
-                } else if (member is FieldDeclarationSyntax fieldDecl) {
-                    if (fieldDecl.Declaration.Variables.Count() != 1) throw new Exception($"Unsupported member, unsupported number of variables. {member.GetType()}");
-                    var variable = fieldDecl.Declaration.Variables[0];
 
-                    var sym = model.GetDeclaredSymbol(variable) as IFieldSymbol;
-                    if (sym == null) throw new Exception($"Unable to get sym from {variable}");
-
-                    // NOTE ignore backing fields already
-                    if (variable.Initializer == null) continue;
-
-                    // if error, make nullabel
-                    // TODO we have an attribute lookup
-                    // if predefinedTypeSyntax -> make nullable, except string
-
-                    infos.Add(new MemberInfo() {
-                            sym = sym,
-                            valueExpression = ValueExpression(variable.Initializer.Value),
-                            makeNullable = makeNullable(sym.Type,fieldDecl.Declaration.Type),
-                            type = sym.Type,
-                            name = sym.Name,
-                            typeName = fieldDecl.Declaration.Type.WithoutTrivia().ToFullString()
-                        });
-                } else {
-                    Console.WriteLine($"Warning Unsupported member {member.GetType()}");
                 }
 
-                static bool makeNullable(ITypeSymbol type, TypeSyntax typeSyntax) {
-                    if (type is INamedTypeSymbol namedType && namedType.IsGenericType) return false;
-                    return type.TypeKind == TypeKind.Error
-                            || (typeSyntax is PredefinedTypeSyntax && type.MetadataName != "String");
-                }
-
-            }
-
-            return infos;
+                return infos;
 
         }
 
