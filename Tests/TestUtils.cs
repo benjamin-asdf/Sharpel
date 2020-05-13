@@ -11,7 +11,7 @@ namespace Tests {
 
         [Test]
         public void TestFirstCharToUpper() {
-            Assert.AreEqual("Lul",Utils.LowerFirstChar("lul"));
+            Assert.AreEqual("lul",Utils.LowerFirstChar("Lul"));
         }
 
     }
