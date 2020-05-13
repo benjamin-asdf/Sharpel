@@ -58,17 +58,32 @@
 
 * TODO attribute for custom value types (make nullable)
 ** custom structs lookup
+* everything defaults to referenceType with backing field,
+* TODO frozen collections patches special stuff
+  [[file:~/org/rewriter/collectionconst.cs::#else][example]]
+** backing
+   :LOGBOOK:
+   CLOCK: [2020-05-12 Tue 19:41]--[2020-05-12 Tue 20:33] =>  0:52
+   CLOCK: [2020-05-12 Tue 19:08]--[2020-05-12 Tue 19:38] =>  0:30
+   :END:
+** TODO create prop with get set
+** default prop with backing
+** TODO build the adj const part
+   :LOGBOOK:
+   CLOCK: [2020-05-13 Wed 08:15]
+   CLOCK: [2020-05-13 Wed 06:39]--[2020-05-13 Wed 07:47] =>  1:08
+   CLOCK: [2020-05-13 Wed 05:32]--[2020-05-13 Wed 06:00] =>  0:28
+   :END:
+
+* generic: default to referenceType,
 * skeletton dll with common types ->
 ** num
 ** frozen collections
 
-* frozen collections patches special stuff
- [[file:~/org/rewriter/collectionconst.cs::#else][example]]
-
-* generic: default to referenceType,
-
-* everything defaults to referenceType with backing field,
 
 
 * move the const rewriter + tests into its own repo
 ** sharpel just has a reference to it.
+
+
+* add everything we encounter in the skeletton dll
