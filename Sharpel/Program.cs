@@ -2,6 +2,8 @@ using System;
 using Microsoft.CodeAnalysis.CSharp;
 using System.IO;
 using Microsoft.CodeAnalysis;
+using Utils;
+using AdjConstRewriter;
 
 namespace Sharpel {
 
@@ -135,21 +137,9 @@ namespace Sharpel {
 
 
         static string GetRewrittenString(string input) {
-            if (!String.IsNullOrEmpty(input)) {
-
-                if (Adhocs.AdHocParse(input, out SyntaxTree tree, out Compilation compilation, out SemanticModel model)) {
-
-                    var root = tree.GetRoot();
-                    var rewriter = new AdjConstRewriter(compilation,model);
-                    return rewriter.Rewrite(root);
-                }
-            }
-            return "";
+            var rewriter = new Rewriter(input);
+            return rewriter.Rewrite();
         }
-
-
-
-
     }
 }
 
