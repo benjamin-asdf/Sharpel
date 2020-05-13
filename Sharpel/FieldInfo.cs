@@ -13,6 +13,7 @@ namespace Sharpel {
         public bool makeNullable;
         public string name;
         public string typeName;
+        public bool makeCollection;
     }
 
 }

@@ -103,8 +103,6 @@ namespace Sharpel {
                         }
                         if (type is INamedTypeSymbol namedType && namedType.IsGenericType) return false;
                         return type.TypeKind != TypeKind.Error && type.IsValueType;
-                        // return type.TypeKind == TypeKind.Error
-                        //         || (typeSyntax is PredefinedTypeSyntax && type.MetadataName != "String");
                     }
 
 
@@ -145,15 +143,48 @@ namespace Sharpel {
         }
 
         SyntaxList<MemberDeclarationSyntax> AdjMembers(List<MemberInfo> memberInfos) {
-            var list = new List<MemberDeclarationSyntax>();
-            foreach (var member in memberInfos) {
-                TypeSyntax newType = member.makeNullable ?
-                    nullableType(member.typeName)
-                    : IdentifierName(member.typeName);
+            var newMembers = new List<MemberDeclarationSyntax>();
+            foreach (var mem in memberInfos) {
+                var typeSyntax = IdentifierName(mem.typeName);
 
-                list.Add(buildFieldDecl(newType,member.sym.Name,SyntaxKind.PublicKeyword));
+                if (types.IsCollectionType(mem.type)) {
+
+                    var defaultBackingFieldName = $"__{Utils.LowerFirstChar(mem.name)}Default__";
+                    newMembers.Add(buildFieldDecl(_simpleType(mem),defaultBackingFieldName,SyntaxKind.StaticKeyword));
+
+                    var defaultPropName = $"__{Utils.UpperFistChar(mem.name)}Default__";
+                    newMembers.Add(buildProp(mem.typeName,defaultPropName,assignmentCoalesce(defaultBackingFieldName,mem.valueExpression)));
+
+                    var adjBackingFieldName = $"__{mem.name}Adj__";
+                    newMembers.Add(buildFieldDecl(_simpleType(mem),adjBackingFieldName,SyntaxKind.PublicKeyword));
+
+                    var getExpr = coaleseExpr(adjBackingFieldName,defaultPropName);
+                    var setExpr = AssignmentExpression(
+                        SyntaxKind.SimpleAssignmentExpression,
+                        IdentifierName(adjBackingFieldName),IdentifierName("value"));
+
+                    newMembers.Add(buildProp(mem.typeName,mem.name,getExpr,setExpr));
+
+
+
+                } else {
+
+                    TypeSyntax newType = mem.makeNullable ?
+                        nullableType(mem.typeName)
+                        : IdentifierName(mem.typeName);
+
+                    newMembers.Add(buildFieldDecl(newType,mem.name,SyntaxKind.PublicKeyword));
+
+
+                }
+
             }
-            return new SyntaxList<MemberDeclarationSyntax>(list);
+
+            static TypeSyntax _simpleType(MemberInfo mem) {
+                return IdentifierName(mem.typeName);
+            }
+
+            return new SyntaxList<MemberDeclarationSyntax>(newMembers);
         }
 
         static ExpressionSyntax ValueExpression(ExpressionSyntax initializerExpression) {
@@ -172,10 +203,13 @@ namespace Sharpel {
 
         }
 
+
+
         // public static int CASINO_SLOT_AMOUNT => CasinoConstAdj.I.CASINO_SLOT_AMOUNT ?? 8;
         // public static long casinoRefreshPrice => CasinoConstAdj.I.casinoRefreshPrice ?? 230000;
         // static int[] __array__;
         // public static int[] array => CasinoConstAdj.I.array ?? (__array__ ?? (__array__ = new []{1,2,3}));
+
 
         ClassDeclarationSyntax NewConst(ClassDeclarationSyntax oldClass, string adjClassName, List<MemberInfo> memberInfos) {
             var newMembers = new List<MemberDeclarationSyntax>();
@@ -183,7 +217,14 @@ namespace Sharpel {
 
                 // string is the only value type without backing field?
                 // NOTE unkown tyes also return false for IsReferenceType
-                if (mem.type.IsReferenceType && mem.type.Name != "String") {
+
+                if (types.IsCollectionType(mem.type)) {
+
+
+                    newMembers.Add(buildProp(mem.typeName,mem.name,accessIExpression(adjClassName,mem.name)));
+
+
+                } else if (mem.type.IsReferenceType) {
 
                     var backingFieldName = $"__{mem.name}__";
                     var backingField = buildFieldDecl(
@@ -194,10 +235,7 @@ namespace Sharpel {
                     var expr = coaleseExpr(
                         accessIExpression(adjClassName,mem.name),
                         // (__array__ ?? (__array__ = new []{1,2,3})
-                        coaleseExpr(IdentifierName(backingFieldName),
-                                    ParenthesizedExpression(AssignmentExpression(
-                                                                SyntaxKind.SimpleAssignmentExpression,
-                                                                IdentifierName(backingFieldName),mem.valueExpression))));
+                        assignmentCoalesce(backingFieldName,mem.valueExpression));
 
                     newMembers.Add(backingField);
                     newMembers.Add(buildProp(mem.typeName,mem.name,expr));
@@ -212,10 +250,6 @@ namespace Sharpel {
                 }
 
 
-                static ExpressionSyntax coaleseExpr(ExpressionSyntax left, ExpressionSyntax right) {
-                    return BinaryExpression(SyntaxKind.CoalesceExpression,left,Token(SyntaxKind.QuestionQuestionToken),right);
-
-                }
 
                 static ExpressionSyntax accessIExpression(string className, string identifier) {
                     return MemberAccessExpression(
@@ -232,21 +266,25 @@ namespace Sharpel {
                 }
             }
 
-            static PropertyDeclarationSyntax buildProp(string typeName, string name, ExpressionSyntax expr) {
-                return PropertyDeclaration(
-                    IdentifierName(typeName),
-                    Identifier(name))
-                    .WithModifiers(modifierList(SyntaxKind.PublicKeyword,SyntaxKind.StaticKeyword))
-                    .WithExpressionBody(
-                        ArrowExpressionClause(expr))
-                    .WithSemicolonToken(Token(SyntaxKind.SemicolonToken));
-
-            }
 
             return oldClass.WithMembers(new SyntaxList<MemberDeclarationSyntax>(newMembers))
                 // NOTE radical.
                 .WithoutTrivia()
                 .NormalizeWhitespace();
+        }
+
+
+        static PropertyDeclarationSyntax buildProp(string typeName, string name, ExpressionSyntax expr) {
+            return blankProp(typeName,name)
+                .WithExpressionBody(ArrowExpressionClause(expr))
+                .WithSemicolonToken(Token(SyntaxKind.SemicolonToken));
+        }
+
+        static PropertyDeclarationSyntax blankProp(string typeName, string name) {
+            return PropertyDeclaration(
+                IdentifierName(typeName),
+                Identifier(name))
+                .WithModifiers(modifierList(SyntaxKind.PublicKeyword,SyntaxKind.StaticKeyword));
         }
 
 
@@ -275,7 +313,49 @@ namespace Sharpel {
             return NullableType(IdentifierName(name));
         }
 
+        static PropertyDeclarationSyntax buildProp(string typeName, string name, ExpressionSyntax getExpr, ExpressionSyntax setExpr) {
+            return blankProp(typeName,name).WithAccessorList(
+                AccessorList(
+                    List<AccessorDeclarationSyntax>(
+                        new AccessorDeclarationSyntax[] {
+                            AccessorDeclaration(
+                                SyntaxKind.GetAccessorDeclaration)
+                            .WithExpressionBody(
+                                ArrowExpressionClause(getExpr))
+                            .WithSemicolonToken(Token(SyntaxKind.SemicolonToken)),
+                            AccessorDeclaration(
+                                SyntaxKind.SetAccessorDeclaration)
+                            .WithExpressionBody(ArrowExpressionClause(setExpr))
+                            .WithSemicolonToken(Token(SyntaxKind.SemicolonToken))
+                        }
+                    )
+                )
+            ).NormalizeWhitespace("\n");
+
+        }
+
+        static ExpressionSyntax assignmentCoalesce(string leftName, ExpressionSyntax value) {
+            return coaleseExpr(IdentifierName(leftName),
+                        ParenthesizedExpression(AssignmentExpression(
+                                                    SyntaxKind.SimpleAssignmentExpression,
+                                                    IdentifierName(leftName),value)));
+
+        }
+
+        static ExpressionSyntax coaleseExpr(string left, string right) => coaleseExpr(IdentifierName(left),IdentifierName(right));
+
+        static ExpressionSyntax coaleseExpr(ExpressionSyntax left, ExpressionSyntax right) {
+            return BinaryExpression(SyntaxKind.CoalesceExpression,left,Token(SyntaxKind.QuestionQuestionToken),right);
+        }
+
+
+
+
     }
+
+
+
+
 
 }
 

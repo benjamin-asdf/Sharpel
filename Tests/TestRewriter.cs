@@ -225,6 +225,37 @@ public static class MenuConstAdj : ConstantPatches.ConstAdjustment<MenuConstAdj>
 
         // test frozen collection
 
+        [Test]
+        public void TestPatchableList() {
+            AssertRewriteNoWhiteSpace(@"
+public static class ListConst {
+    public static readonly PatchableList<string> List = new PatchableList<string>();
+}
+",@"
+#if EDIT_CONST
+public static class ListConst {
+    public static readonly PatchableList<string> List = new PatchableList<string>();
+}
+#else
+public static class ListConst
+{
+    public static PatchableList<string> List => ListConstAdj.I.List;
+}
+public static class ListConstAdj : ConstantPatches.ConstAdjustment<ListConstAdj>
+{
+    static PatchableList<string> __listDefault__;
+    public static PatchableList<string> __ListDefault__ => __listDefault__ ?? (__listDefault__ = new PatchableList<string>());
+    public PatchableList<string> __ListAdj__;
+    public static PatchableList<string> List
+    {
+        get => __ListAdj__ ?? __ListDefault__;
+        set => __ListAdj__ = value;
+    }
+}
+#endif //EDIT_CONST
+");
+
+        }
 
 
 
