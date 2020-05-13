@@ -287,7 +287,35 @@ public class BestConstAdj : ConstantPatches.ConstAdjustment<BestConstAdj>
 
         }
 
+        [Test]
+        public void TestCustomStruct() {
 
+            AssertRewriteNoWhiteSpace(@"
+[CustomStruct(typeof(BestStruct))]
+public static class BestConst {
+    public BestStruct best = new BestStruct(10);
+}
+",@"
+#if EDIT_CONST
+[CustomStruct(typeof(BestStruct))]
+public static class BestConst {
+    public BestStruct best = new BestStruct(10);
+}
+#else
+[CustomStruct(typeof(BestStruct))]
+public static class BestConst
+{
+    public static BestStruct best => BestConstAdj.I.best ?? new BestStruct(10);
+}
+public class BestConstAdj : ConstantPatches.ConstAdjustment<BestConstAdj>
+{
+    public BestStruct? best;
+}
+#endif //EDIT_CONST
+");
+
+
+        }
 
 
 

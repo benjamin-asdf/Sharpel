@@ -35,10 +35,9 @@ namespace Sharpel {
                         if (typeSym.EqualTo(types.customStructAttr) && attr.ArgumentList != null) {
 
                             foreach (var arg in attr.ArgumentList.Arguments) {
-                                if (arg.Expression is TypeOfExpressionSyntax typeOfExpression
-                                    && typeOfExpression.Type is IdentifierNameSyntax id) {
-                                    customStructs.Add(id.Identifier.ToFullString());
-                               }
+                                if (arg.Expression is TypeOfExpressionSyntax typeOfExpression) {
+                                    customStructs.Add(typeOfExpression.Type.WithoutTrivia().ToFullString());
+                                }
                             }
                         }
                     }
@@ -66,7 +65,7 @@ namespace Sharpel {
                 outstring = $"{outstring}{usingDirective.ToFullString()}";
             }
 
-            var memberInfos = GetMemberInfos(model,classDeclaration.Members,types);
+            var memberInfos = GetMemberInfos(model,classDeclaration.Members,types,customStructs);
             var adjClassName = $"{classDeclaration.Identifier.ValueText}Adj";
             var adjClass = AdjClassSyntax(classDeclaration,adjClassName,memberInfos);
 
@@ -78,7 +77,7 @@ namespace Sharpel {
             return $"{outstring}\n#if EDIT_CONST\n{classDeclaration.WithoutTrivia()}\n#else\n{newConst}\n{adjClass}\n#endif //EDIT_CONST".Replace("\r\n", "\n");
 
 
-            static List<MemberInfo> GetMemberInfos(SemanticModel model, SyntaxList<MemberDeclarationSyntax> members, CommonTypes types) {
+            static List<MemberInfo> GetMemberInfos(SemanticModel model, SyntaxList<MemberDeclarationSyntax> members, CommonTypes types, HashSet<string> customStructs) {
                 var infos = new List<MemberInfo>();
                 foreach (var member in members) {
                     if (member is PropertyDeclarationSyntax propertyDecl) {
@@ -94,7 +93,7 @@ namespace Sharpel {
                         infos.Add(new MemberInfo() {
                                 sym = sym,
                                 valueExpression = ValueExpression(expr),
-                                makeNullable = makeNullable(sym.Type,propertyDecl.Type),
+                                makeNullable = makeNullable(sym.Type,propertyDecl.Type,customStructs),
                                 type = sym.Type,
                                 name = sym.Name,
                                 typeName = propertyDecl.Type.WithoutTrivia().ToFullString(),
@@ -118,25 +117,23 @@ namespace Sharpel {
                         infos.Add(new MemberInfo() {
                                 sym = sym,
                                 valueExpression = ValueExpression(variable.Initializer.Value),
-                                makeNullable = makeNullable(sym.Type,fieldDecl.Declaration.Type),
+                                makeNullable = makeNullable(sym.Type,fieldDecl.Declaration.Type,customStructs),
                                 type = sym.Type,
                                 name = sym.Name,
                                 typeName = fieldDecl.Declaration.Type.WithoutTrivia().ToFullString()
                             });
 
-
-                        Console.WriteLine($"is {sym.Name} collection type? {types.IsCollectionType(sym.Type)}");
-
                     } else {
-                        Console.WriteLine($"Warning Unsupported member {member.GetType()}");
+                        Log.Warning($"Unsupported member {member.GetType()}");
                     }
 
-                    static bool makeNullable(ITypeSymbol type, TypeSyntax typeSyntax) {
+                    static bool makeNullable(ITypeSymbol type, TypeSyntax typeSyntax, HashSet<string> customStructs) {
+                        if (customStructs.Contains(typeSyntax.WithoutTrivia().ToFullString())) return true;
                         if (type.TypeKind == TypeKind.Error) {
-                            Log.Warning($"cannot get type kind for {type.Name}, default to not make nullable");
+                            Log.Stdout($"cannot get type kind for {type.Name}, default to not make nullable");
                         }
                         if (type is INamedTypeSymbol namedType && namedType.IsGenericType) return false;
-                        return type.TypeKind != TypeKind.Error && type.IsValueType;
+                        return  type.TypeKind != TypeKind.Error && type.IsValueType;
                     }
 
 
@@ -256,7 +253,7 @@ namespace Sharpel {
                     newMembers.Add(buildProp(mem.typeName,mem.name,accessIExpression(adjClassName,mem.name)));
 
 
-                } else if (mem.type.IsReferenceType) {
+                } else if (mem.type.IsReferenceType && !mem.makeNullable) {
 
                     var backingFieldName = $"__{mem.name}__";
                     var backingField = buildFieldDecl(
