@@ -17,6 +17,13 @@ namespace RoslynUtils {
             if(that.Equals(other)) return true;
             return that.MetadataName == other.MetadataName;
         }
+
+
+        public static T NormWhiteSpaceLF<T>(this T node) where T : SyntaxNode {
+            return node.NormalizeWhitespace(indentation: "    ", eol: "\n");
+        }
+
+
     }
 
 }

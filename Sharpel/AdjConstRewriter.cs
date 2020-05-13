@@ -50,7 +50,6 @@ namespace Sharpel {
 
 
         public string Rewrite(SyntaxNode root) {
-
             var outstring = "";
             var classDeclaration = root.ChildNodes().OfType<ClassDeclarationSyntax>().FirstOrDefault();
 
@@ -70,13 +69,14 @@ namespace Sharpel {
             var memberInfos = GetMemberInfos(model,classDeclaration.Members,types);
             var adjClassName = $"{classDeclaration.Identifier.ValueText}Adj";
             var adjClass = AdjClassSyntax(classDeclaration,adjClassName,memberInfos);
-            var newConst = NewConst(classDeclaration,adjClassName,memberInfos).WithoutTrivia();
+
+            var newConst = NewConst(classDeclaration,adjClassName,memberInfos);
             foreach (var mem in memberInfos) {
                 Console.WriteLine($"{mem.sym.Name} make nullable {mem.makeNullable}");
             }
 
             return $"{outstring}\n#if EDIT_CONST\n{classDeclaration.WithoutTrivia()}\n#else\n{newConst}\n{adjClass}\n#endif //EDIT_CONST".Replace("\r\n", "\n");
-            }
+
 
             static List<MemberInfo> GetMemberInfos(SemanticModel model, SyntaxList<MemberDeclarationSyntax> members, CommonTypes types) {
                 var infos = new List<MemberInfo>();
@@ -143,16 +143,18 @@ namespace Sharpel {
                 }
 
                 return infos;
+            }
 
         }
 
         ClassDeclarationSyntax AdjClassSyntax(
             ClassDeclarationSyntax old, string adjClassName, List<MemberInfo> memberInfos) {
             return ClassDeclaration(adjClassName)
-                .WithMembers(AdjMembers(memberInfos)).NormalizeWhitespace()
+                .WithMembers(AdjMembers(memberInfos))
                 .WithBaseList(
                     GetAdjBaseList(adjClassName))
-                .WithModifiers(modifierList(SyntaxKind.PublicKeyword));
+                .WithModifiers(modifierList(SyntaxKind.PublicKeyword))
+                .NormWhiteSpaceLF();
         }
 
 
@@ -298,9 +300,9 @@ namespace Sharpel {
 
 
             return oldClass.WithMembers(new SyntaxList<MemberDeclarationSyntax>(newMembers))
-                // NOTE radical.
                 .WithoutTrivia()
-                .NormalizeWhitespace();
+                .NormWhiteSpaceLF();
+
         }
 
 
@@ -326,7 +328,7 @@ namespace Sharpel {
             return FieldDeclaration(
                 VariableDeclaration(type,
                                     SingletonSeparatedList<VariableDeclaratorSyntax>(
-                                        VariableDeclarator(identifier.NormalizeWhitespace()))))
+                                        VariableDeclarator(identifier))))
                 .WithModifiers(modifierList(modifierKinds));
         }
 

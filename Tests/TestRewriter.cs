@@ -260,6 +260,35 @@ public class ListConstAdj : ConstantPatches.ConstAdjustment<ListConstAdj>
 
 
 
+        [Test]
+        public void TestUnknownType() {
+            AssertRewriteNoWhiteSpace(@"
+public static class BestConst {
+    public SomeThingUnknown best = new SomeThingUnknown(10);
+}
+",@"
+#if EDIT_CONST
+public static class BestConst {
+    public SomeThingUnknown best = new SomeThingUnknown(10);
+}
+#else
+public static class BestConst
+{
+    static SomeThingUnknown __best__;
+    public static SomeThingUnknown best => BestConstAdj.I.best ?? __best__ ?? (__best__ = new SomeThingUnknown(10));
+}
+public class BestConstAdj : ConstantPatches.ConstAdjustment<BestConstAdj>
+{
+    public SomeThingUnknown best;
+}
+#endif //EDIT_CONST
+");
+
+
+        }
+
+
+
 
 
         static void AssertRewriteNoWhiteSpace(string input, string expected) {
