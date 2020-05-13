@@ -21,8 +21,6 @@ public class CommonTypes {
 
     }
 
-    // todo int[] is not a named type, classify array types as collections?
-
     public bool IsCollectionType(ITypeSymbol other) {
         foreach (var _type in collectionTypes) {
             if (_type.EqualTo(other)) {
