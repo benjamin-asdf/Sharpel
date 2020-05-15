@@ -142,32 +142,3 @@ namespace Sharpel {
         }
     }
 }
-
-// using (var ir = Console.OpenStandardInput()) {
-//     while (true) {
-//         var input = ir.Read(Span<byte> buffer)
-//         Console.WriteLine("input is");
-//         Console.WriteLine(input);
-//         CheckClassDeclatation(input);
-
-//     }
-// }
-
-// using (var ir = Console.In) {
-//     while (true) {
-//         var input = ir.ReadToEnd();
-//         Console.WriteLine("input is");
-//         Console.WriteLine(input);
-//         CheckClassDeclatation(input);
-
-//     }
-// }
-
-// LogDesc(root);
-
-// void LogDesc(SyntaxNode node) {
-//     foreach (var n in node.DescendantNodes()) {
-//         Console.WriteLine($"{n.Kind()} - {n.ToFullString()} - has {node.DescendantNodes().Count()} descendants");
-//         LogDesc(n);
-//     }
-// }
