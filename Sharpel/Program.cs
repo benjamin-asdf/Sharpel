@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Microsoft.CodeAnalysis.CSharp;
 using System.IO;
 using Microsoft.CodeAnalysis;
@@ -16,15 +17,27 @@ namespace Sharpel {
             RewriteFile
         }
 
+
         static void Main(string[] args) {
-            Console.WriteLine("Running Sharpel, listening for input...");
+            // todo nice command parsing
+
+            Console.WriteLine(args.Length);
+
+            if (args.Length == 2 && args[0] == "--split-classes") {
+                Console.WriteLine($"split classes! arg:");
+                Console.WriteLine(args[1]);
+                ClassSplit.Split(args[1]);
+                return;
+            }
+
+
+            Console.WriteLine("Running Sharpel stdio mode., listening for input...");
+
 
             while (true) {
                 Console.WriteLine("\ninput:\n");
 
                 // could build the line
-                // var line = Console.ReadLine();
-                // var lines = line.Split("\u0000");
 
                 if (CommandInputLoop(out var cmd, out var input)) {
 
@@ -37,36 +50,10 @@ namespace Sharpel {
                         WithFileContents(input,RewriteFile);
                     }
 
-
                     if (cmd == Command.LogSyntax) {
                         Console.WriteLine($"\nparse for log syntax...\n");
-                        var tree = SyntaxFactory.ParseSyntaxTree(input);
-
-                        var root = tree.GetRoot();
-                        LogWithIndent(0,root);
-
-                        void LogWithIndent(int level, SyntaxNode node) {
-                            var pad = new String('*',level);
-                            // foreach (var item in node.DescendantNodesAndTokens(null,true)) {
-                            //         Console.WriteLine($"{pad} {item.Kind()} - {item.ToFullString()}");
-                            //     }
-
-                            // }
-                            foreach (var item in node.ChildNodesAndTokens()) {
-                                if (level == 0) {
-                                    Console.WriteLine("-----------------");
-                                }
-                                Console.WriteLine($"{pad} {item.Kind()} - {item.ToFullString()}");
-                                var childNode = item.AsNode();
-                                if (childNode != null) {
-                                    // Console.WriteLine($"{pad}descendants: ({childNode.DescendantNodes().Count()})");
-                                    LogWithIndent(level + 1,childNode);
-                                }
-                            }
-                        }
+                        WithFileContents(input,LogSyntax);
                     }
-
-
 
                 } else {
                     Console.WriteLine("invalid input");
@@ -90,13 +77,47 @@ namespace Sharpel {
                     }
 
                     input = Console.ReadLine();
-                    // input = input.Replace("\u0000", "\r\n");
-                    // Console.WriteLine($"have {input.Split("\r\n").Count()} lines");
+
+                    // input = input.Replace('\0', '\n');
+                    // var lines = input.Split('\n');
+                    // Console.WriteLine($"have {lines.Count()} lines");
                     return !String.IsNullOrWhiteSpace(input);
                 }
 
                 return false;
             }
+        }
+
+        static void LogSyntax(string path, string input) {
+            var tree = SyntaxFactory.ParseSyntaxTree(input);
+            var root = tree.GetRoot();
+            LogWithIndent(1,root);
+
+
+            void LogWithIndent(int level, SyntaxNode node) {
+                var pad = new String('*',level);
+
+                // foreach (var item in node.DescendantNodesAndTokens(null,true)) {
+                //         Console.WriteLine($"{pad} {item.Kind()} - {item.ToFullString()}");
+                //     }
+
+                // }
+                foreach (var item in node.ChildNodesAndTokens()) {
+                    if (level == 1) {
+                        Console.WriteLine("-----------------");
+                    }
+                    var s = item.ToFullString();
+                    var shortend = s.Length > 40 ? s.Substring(0, 40) : s;
+                    var previewPart = shortend.Replace('\t', ' ').Replace("\r\n"," ");
+                    Console.WriteLine($"{pad} {item.Kind()} - {previewPart}\n{item.ToFullString()}");
+                    var childNode = item.AsNode();
+                    if (childNode != null) {
+                        // Console.WriteLine($"{pad}descendants: ({childNode.DescendantNodes().Count()})");
+                        LogWithIndent(level + 1,childNode);
+                    }
+                }
+            }
+
         }
 
         static void WithFileContents(string path, Action<string,string> op) {

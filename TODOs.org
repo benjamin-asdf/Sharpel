@@ -46,16 +46,4 @@
 
 
 
-* checkout more examples and find things
-
-
-* TODO add everything we encounter in the skeletton dll
-** add frozen collections
-** also add them to the common types
-** add common structs
-
-* move the const rewriter + tests into its own repo
-** sharpel just has a reference to it.
-
-* Rewriter cli mode
 * sharpel cli mode
